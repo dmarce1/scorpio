@@ -10,7 +10,7 @@
 #define EULER_GAMMA         (5.0/3.0)
 #define GNX 				(8+2*BW)
 #define PNX                 (8+2)
-#define TIME_MAX           	(1.00e-1)
+#define TIME_MAX           	(1.00e-2)
 #define OUTPUT_TIME_FREQ   	(.0025)
 #define MAXDTINC            (1.25)
 #define GRID_CFL_FACTOR     0.4

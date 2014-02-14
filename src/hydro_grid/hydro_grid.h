@@ -40,8 +40,7 @@ private:
 	Real time;
 	static State FO0;
 	static State FO;
-	Array3d<Vector<Real, STATE_NF>, GNX, GNX, GNX> Fv[3];
-	Array3d<Real, GNX, GNX, GNX> Fs[3];
+	Array3d<Vector<Real, STATE_NF>, GNX, GNX, GNX> F[3];
 	Array3d<Vector<Real, STATE_NF>, GNX, GNX, GNX> E;
 	bool amr_has[3];
 	int amr_cnt[3];
@@ -108,7 +107,7 @@ protected:
 	virtual void write(FILE* fp) const;
 	virtual void read(FILE* fp);
 	State get_flux(int dir, int i, int j, int k) const {
-		return Fv[dir](i, j, k);
+		return F[dir](i, j, k);
 	}
 	_3Vec Xfx(int, int, int) const;
 	_3Vec Xfy(int, int, int) const;

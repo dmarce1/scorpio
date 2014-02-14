@@ -28,7 +28,7 @@ src/sedov/%.o: ../src/sedov/%.c
 src/sedov/sedov3.o: ../src/sedov/sedov3.f
 	@echo 'Building file: $<'
 	@echo 'Invoking: Intel(R) Intel(R) 64 Fortran Compiler'
-	ifort -c -o "$@" "$<"
+	ifort -reentrancy threaded -c -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 

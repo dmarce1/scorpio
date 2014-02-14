@@ -1,4 +1,4 @@
-#include "../single_star/lane_emden.h"
+#include "lane_emden.h"
 #include "binary_star.h"
 
 #include "dwd.h"
@@ -36,47 +36,6 @@ void BinaryStar::compute_flow_off() {
 					}
 					if (is_phys_bound(ZU) && k == GNX - BW - 1) {
 						this_DFO += (get_flux(2, i, j, k + 1)) * da;
-					}
-					if (!State::cylindrical) {
-						const int lx = State::sx_index;
-						const int ly = State::sy_index;
-						this_DFO[ly] = 0.0;
-						if (is_phys_bound(XL) && i == BW) {
-							this_DFO[ly] -= (get_flux(0, i, j, k))[ly] * da
-									* HydroGrid::xf(i);
-							this_DFO[ly] += (get_flux(0, i, j, k))[lx] * da
-									* HydroGrid::yc(j);
-						}
-						if (is_phys_bound(XU) && i == GNX - BW - 1) {
-							this_DFO[ly] += (get_flux(0, i + 1, j, k))[ly] * da
-									* HydroGrid::xf(i + 1);
-							this_DFO[ly] -= (get_flux(0, i + 1, j, k))[lx] * da
-									* HydroGrid::yc(j + 1);
-						}
-						if (is_phys_bound(YL) && j == BW) {
-							this_DFO[ly] -= (get_flux(1, i, j, k))[ly] * da
-									* HydroGrid::xc(i);
-							this_DFO[ly] += (get_flux(1, i, j, k))[lx] * da
-									* HydroGrid::yc(j);
-						}
-						if (is_phys_bound(YU) && j == GNX - BW - 1) {
-							this_DFO[ly] += (get_flux(1, i, j + 1, k))[ly] * da
-									* HydroGrid::xc(i);
-							this_DFO[ly] -= (get_flux(1, i, j + 1, k))[lx] * da
-									* HydroGrid::yc(j);
-						}
-						if (is_phys_bound(ZL) && k == BW) {
-							this_DFO[ly] -= (get_flux(2, i, j, k))[ly] * da
-									* HydroGrid::xc(i);
-							this_DFO[ly] += (get_flux(2, i, j, k))[lx] * da
-									* HydroGrid::yc(j);
-						}
-						if (is_phys_bound(ZU) && k == GNX - BW - 1) {
-							this_DFO[ly] += (get_flux(2, i, j, k + 1))[ly] * da
-									* HydroGrid::xc(i);
-							this_DFO[ly] -= (get_flux(2, i, j, k + 1))[lx] * da
-									* HydroGrid::yc(j);
-						}
 					}
 				}
 			}

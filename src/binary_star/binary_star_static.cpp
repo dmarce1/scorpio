@@ -841,9 +841,7 @@ void BinaryStar::run(int argc, char* argv[]) {
 #endif
         get_root()->output("./output/X", 0.0, GNX, BW);
         integrate_conserved_variables(&sum);
-        if (State::cylindrical) {
-            lz_t0 = sum[State::sy_index];
-        }
+        lz_t0 = sum[State::lz_index];
     }
     int iter = 0;
     Real time_start = MPI_Wtime();
@@ -1004,75 +1002,34 @@ void BinaryStar::diagnostics(Real dt) {
                         etall += u.conserved_energy(x) * dv;
                         //					etall += u.et() * dv;
                         mtot += u.rho() * dv;
-                        if (State::cylindrical) {
-                            lz += u.sy() * dv;
+                        lz += u.sy() * dv;
 //							dlz_hydro += dudt[State::sy_index] * dv;
-                            const int l = State::sy_index;
-                            dlz_hydro += (b->get_flux(0, i + 1, j, k)[l] - b->get_flux(0, i, j, k)[l]) * da;
-                            dlz_hydro += (b->get_flux(1, i, j + 1, k)[l] - b->get_flux(1, i, j, k)[l]) * da;
-                            dlz_hydro += (b->get_flux(2, i, j, k + 1)[l] - b->get_flux(2, i, j, k)[l]) * da;
-                        } else {
-                            lz += (x[0] * u.sy() - x[1] * u.sx()) * dv;
-                            int l = State::sy_index;
-                            dlz_hydro += (b->get_flux(0, i + 1, j, k)[l] - b->get_flux(0, i, j, k)[l]) * da * b->HydroGrid::xc(i);
-                            dlz_hydro += (b->get_flux(1, i, j + 1, k)[l] - b->get_flux(1, i, j, k)[l]) * da * b->HydroGrid::xc(i);
-                            dlz_hydro += (b->get_flux(2, i, j, k + 1)[l] - b->get_flux(2, i, j, k)[l]) * da * b->HydroGrid::xc(i);
-                            dlz_hydro -= (*b)(i, j, k).source(b->HydroGrid::X(i, j, k), get_time())[l] * b->HydroGrid::xc(i) * dv;
-                            l = State::sx_index;
-                            dlz_hydro -= (b->get_flux(0, i + 1, j, k)[l] - b->get_flux(0, i, j, k)[l]) * da * b->HydroGrid::yc(j);
-                            dlz_hydro -= (b->get_flux(1, i, j + 1, k)[l] - b->get_flux(1, i, j, k)[l]) * da * b->HydroGrid::yc(j);
-                            dlz_hydro -= (b->get_flux(2, i, j, k + 1)[l] - b->get_flux(2, i, j, k)[l]) * da * b->HydroGrid::yc(j);
-                            dlz_hydro += (*b)(i, j, k).source(b->HydroGrid::X(i, j, k), get_time())[l] * b->HydroGrid::yc(j) * dv;
-                        }
+                        const int l = State::lz_index;
+                        dlz_hydro += (b->get_flux(0, i + 1, j, k)[l] - b->get_flux(0, i, j, k)[l]) * da;
+                        dlz_hydro += (b->get_flux(1, i, j + 1, k)[l] - b->get_flux(1, i, j, k)[l]) * da;
+                        dlz_hydro += (b->get_flux(2, i, j, k + 1)[l] - b->get_flux(2, i, j, k)[l]) * da;
 #ifdef USE_FMM
                         dlz_grav += b->g_lz(i, j, k) * u.rho() * dv;
 #else
                         dlz_grav += b->glz(i, j, k) * u.rho() * dv;
 #endif
-                        if (State::cylindrical) {
-                            if (b->is_phys_bound(XL) && i == BW) {
-                                dlz_flow_off -= (b->get_flux(0, i, j, k))[State::sy_index] * da;
-                            }
-                            if (b->is_phys_bound(XU) && i == GNX - BW - 1) {
-                                dlz_flow_off += (b->get_flux(0, i + 1, j, k))[State::sy_index] * da;
-                            }
-                            if (b->is_phys_bound(YL) && j == BW) {
-                                dlz_flow_off -= (b->get_flux(1, i, j, k))[State::sy_index] * da;
-                            }
-                            if (b->is_phys_bound(YU) && j == GNX - BW - 1) {
-                                dlz_flow_off += (b->get_flux(1, i, j + 1, k))[State::sy_index] * da;
-                            }
-                            if (b->is_phys_bound(ZL) && k == BW) {
-                                dlz_flow_off -= (b->get_flux(2, i, j, k))[State::sy_index] * da;
-                            }
-                            if (b->is_phys_bound(ZU) && k == GNX - BW - 1) {
-                                dlz_flow_off += (b->get_flux(2, i, j, k + 1))[State::sy_index] * da;
-                            }
-                        } else {
-                            if (b->is_phys_bound(XL) && i == BW) {
-                                dlz_flow_off -= (b->get_flux(0, i, j, k))[State::sy_index] * da * b->HydroGrid::xf(i);
-                                dlz_flow_off += (b->get_flux(0, i, j, k))[State::sx_index] * da * b->HydroGrid::yc(j);
-                            }
-                            if (b->is_phys_bound(XU) && i == GNX - BW - 1) {
-                                dlz_flow_off += (b->get_flux(0, i + 1, j, k))[State::sy_index] * da * b->HydroGrid::xf(i + 1);
-                                dlz_flow_off -= (b->get_flux(0, i + 1, j, k))[State::sx_index] * da * b->HydroGrid::yc(j);
-                            }
-                            if (b->is_phys_bound(YL) && j == BW) {
-                                dlz_flow_off -= (b->get_flux(1, i, j, k))[State::sy_index] * da * b->HydroGrid::xc(i);
-                                dlz_flow_off += (b->get_flux(1, i, j, k))[State::sx_index] * da * b->HydroGrid::yf(j);
-                            }
-                            if (b->is_phys_bound(YU) && j == GNX - BW - 1) {
-                                dlz_flow_off += (b->get_flux(1, i, j + 1, k))[State::sy_index] * da * b->HydroGrid::xc(i);
-                                dlz_flow_off -= (b->get_flux(1, i, j + 1, k))[State::sx_index] * da * b->HydroGrid::yf(j + 1);
-                            }
-                            if (b->is_phys_bound(ZL) && k == BW) {
-                                dlz_flow_off -= (b->get_flux(2, i, j, k))[State::sy_index] * da * b->HydroGrid::xc(i);
-                                dlz_flow_off += (b->get_flux(2, i, j, k))[State::sx_index] * da * b->HydroGrid::yc(j);
-                            }
-                            if (b->is_phys_bound(ZU) && k == GNX - BW - 1) {
-                                dlz_flow_off += (b->get_flux(2, i, j, k + 1))[State::sy_index] * da * b->HydroGrid::xc(i);
-                                dlz_flow_off -= (b->get_flux(2, i, j, k + 1))[State::sx_index] * da * b->HydroGrid::yc(j);
-                            }
+                        if (b->is_phys_bound(XL) && i == BW) {
+                            dlz_flow_off -= (b->get_flux(0, i, j, k))[State::lz_index] * da;
+                        }
+                        if (b->is_phys_bound(XU) && i == GNX - BW - 1) {
+                            dlz_flow_off += (b->get_flux(0, i + 1, j, k))[State::lz_index] * da;
+                        }
+                        if (b->is_phys_bound(YL) && j == BW) {
+                            dlz_flow_off -= (b->get_flux(1, i, j, k))[State::lz_index] * da;
+                        }
+                        if (b->is_phys_bound(YU) && j == GNX - BW - 1) {
+                            dlz_flow_off += (b->get_flux(1, i, j + 1, k))[State::lz_index] * da;
+                        }
+                        if (b->is_phys_bound(ZL) && k == BW) {
+                            dlz_flow_off -= (b->get_flux(2, i, j, k))[State::lz_index] * da;
+                        }
+                        if (b->is_phys_bound(ZU) && k == GNX - BW - 1) {
+                            dlz_flow_off += (b->get_flux(2, i, j, k + 1))[State::lz_index] * da;
                         }
                     }
                 }

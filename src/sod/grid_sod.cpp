@@ -11,7 +11,7 @@ static Real c = 15.0;
 static Real etot = 0.0;
 static bool diag_mode = false;
 static bool initialized1 = false;
-bool GridSod::oblique = false;
+bool GridSod::oblique = true;
 
 Vector<Real, 5>* GridSod::line_avg_tmp;
 Vector<Real, 5>* GridSod::line_avg;
@@ -47,7 +47,7 @@ void GridSod::set_refine_flags() {
                         drho_max = max(drho_max, fabs(log(U(i, j - 1, k).rho() / rho)));
                         drho_max = max(drho_max, fabs(log(U(i, j, k + 1).rho() / rho)));
                         drho_max = max(drho_max, fabs(log(U(i, j, k - 1).rho() / rho)));
-                        if (drho_max > 0.1) {
+                        if (drho_max > 0.05) {
                             set_refine_flag(c, true);
                         }
                     }
@@ -72,14 +72,8 @@ void GridSod::physical_boundary(int dir) {
             for (Indexer3d i(lb, ub); !i.end(); i++) {
                 k = i;
                 k[dir] = BW + l * (GNX - 2 * BW - 1);
-                if (!State::cylindrical) {
-                    U(i[0], i[1], i[2]) = U(k[0], k[1], k[2]);
-                } else {
-                    State tmp = U(k[0], k[1], k[2]);
-                    tmp.to_cartesian_momenta(X(k[0], k[1], k[2]));
-                    U(i[0], i[1], i[2]) = tmp;
-                    U(i[0], i[1], i[2]).to_cylindrical_momenta(X(i[0], i[1], i[2]));
-                }
+                U(i[0], i[1], i[2]) = U(k[0], k[1], k[2]);
+                U(i[0], i[1], i[2]).set_lz_from_cartesian(X(i[0], i[1], i[2]));
             }
         }
     }
@@ -98,9 +92,9 @@ Real GridSod::get_output_point(int i, int j, int k, int l) const {
     case 0:
         return (*this)(i, j, k).rho();
     case 1:
-        return (*this)(i, j, k).vx(X(i,j,k));
+        return (*this)(i, j, k).vx(X(i, j, k));
     case 2:
-        return (*this)(i, j, k).vy(X(i,j,k));
+        return (*this)(i, j, k).vy(X(i, j, k));
     case 3:
         return (*this)(i, j, k).sz() / (*this)(i, j, k).rho();
     case 4:
@@ -161,6 +155,10 @@ const char* GridSod::output_field_names(int i) const {
 
 void GridSod::run(int argc, char* argv[]) {
     //shadow_on();
+    if (argc != 2 || atoi(argv[1]) < 1) {
+        printf("Command format is ./Scorpio <maxlev>\n");
+        MPI_Abort(MPI_COMM_WORLD, -1);
+    }
     Real dxmin = dynamic_cast<GridSod*>(get_root())->get_dx() / Real(1 << get_max_level_allowed());
     initialized1 = true;
     PhysicalConstants::A = 0.0;
@@ -182,9 +180,22 @@ void GridSod::run(int argc, char* argv[]) {
     Real xpos[M];
     Real l2 = 0.0;
     dxmin = dynamic_cast<GridSod*>(get_root())->get_dx() / Real(1 << get_max_level_allowed());
+    FILE* fpc = fopen("center.dat", "wt");
     for (int l = 0; l < get_local_node_cnt(); l++) {
         g = dynamic_cast<GridSod*>(get_local_node(l));
         int j = 0;
+        int k;
+
+        j = BW;
+        k = BW;
+        if (g->yc(j) < g->get_dx() && g->zc(j) < g->get_dx() && g->yc(j) > 0.0 && g->zc(j) > 0.0) {
+            for (int i = BW; i < GNX - BW; i++) {
+                if (!g->zone_is_refined(i, j, k)) {
+                    fprintf(fpc, "%e %e %e %e\n", g->xc(i), (*g)(i, j, k).rho(), (*g)(i, j, k).vx(g->X(i, j, k)), (*g)(i, j, k).vy(g->X(i, j, k)));
+                }
+            }
+        }
+
         j = 0;
         const Real dv = pow(g->get_dx(), 3);
         for (Indexer3d i(BW, GNX - BW - 1); !i.end(); i++) {
@@ -223,6 +234,7 @@ void GridSod::run(int argc, char* argv[]) {
             }
         }
     }
+    fclose(fpc);
     g = dynamic_cast<GridSod*>(get_root());
     for (int i = 0; i < line_N; i++) {
         g->line_avg_tmp[i] = g->line_avg[i];
@@ -296,7 +308,7 @@ void GridSod::run(int argc, char* argv[]) {
 
 void GridSod::initialize() {
 #ifdef SOD
-  //  State::set_gamma(7.0 / 5.0);
+    //  State::set_gamma(7.0 / 5.0);
     State U = Vector<Real, STATE_NF>(0.0);
     Real et;
     for (int k = 0; k < GNX; k++) {

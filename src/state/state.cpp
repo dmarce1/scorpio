@@ -1,5 +1,7 @@
 #include "../defs.h"
 
+#include "state.h"
+
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
@@ -8,75 +10,139 @@
 Real State::gamma = 5.0 / 3.0;
 Real State::rho_floor = 1.0e-12;
 Real State::ei_floor = 1.0e-20;
-const int State::d_index = 0;
-const int State::sx_index = 1;
-const int State::sy_index = 2;
-const int State::sz_index = 3;
-const int State::et_index = 4;
-const int State::tau_index = 5;
-const int State::frac_index = 6;
-bool State::cylindrical = true;
 _3Vec State::drift_vel = 0.0;
+Real State::omega = 0.0;
 
-Vector<Real, STATE_NF> State::x_scalar_flux_coeff(const _3Vec& X) {
-    Vector<Real, STATE_NF> c = 0.0;
-    if (cylindrical) {
-        c[sx_index] = X[0] / sqrt(X[0] * X[0] + X[1] * X[1]);
-        c[sy_index] = 0.0;
-    } else {
-        c[sx_index] = 0.0;
-    }
-    return c;
+void State::set_omega(Real o) {
+    omega = o;
 }
 
-Vector<Real, STATE_NF> State::y_scalar_flux_coeff(const _3Vec& X) {
-    Vector<Real, STATE_NF> c = 0.0;
-    if (cylindrical) {
-        c[sx_index] = X[1] / sqrt(X[0] * X[0] + X[1] * X[1]);
-        c[sy_index] = 0.0;
-    } else {
-        c[sy_index] = 0.0;
-    }
-    return c;
+bool State::low_order_variable(int i) {
+    return i == pot_index;
 }
 
-Vector<Real, STATE_NF> State::z_scalar_flux_coeff(const _3Vec& X) {
-    Vector<Real, STATE_NF> c = 0.0;
-    c[sz_index] = 0.0;
-    return c;
+bool State::smooth_variable(int i) {
+    return i == pot_index;
 }
 
-Real State::scalar_flux(const _3Vec& X) const {
-    return pg(X);
+Real State::rot_pot(const _3Vec& X) const {
+    return rho() * rot_phi(X);
+}
+Real State::rot_phi(const _3Vec& X) const {
+    const Real R2 = X[0] * X[0] + X[1] * X[1];
+    return -0.5 * R2 * omega * omega;
 }
 
-Vector<Real, STATE_NF> State::x_vector_flux(const _3Vec& X) const {
+Real State::pot() const {
+    return (*this)[pot_index];
+}
+
+void State::set_pot(Real a) {
+    (*this)[pot_index] = a;
+}
+
+State& State::operator=(const State& s) {
+    this->Vector<Real, STATE_NF>::operator=(s);
+    return *this;
+}
+
+State& State::operator=(const Vector<Real, STATE_NF>& s) {
+    this->Vector<Real, STATE_NF>::operator=(s);
+    return *this;
+}
+
+State::State(const State& s) {
+    *this = s;
+}
+
+Real State::conserved_energy(const _3Vec X) {
+    Real egas, egrav, erot;
+    egas = et();
+    egrav = 0.5 * (pot() - rot_pot(X));
+    erot = rot_pot(X);
+    return egas + egrav + erot;
+}
+
+void State::to_con(const _3Vec& X) {
+    (*this)[et_index] += 0.5 * ((*this)[pot_index] + rot_pot(X));
+}
+
+void State::from_con(const _3Vec& X) {
+    (*this)[et_index] -= 0.5 * ((*this)[pot_index] + rot_pot(X));
+}
+
+Real State::phi_eff() const {
+    return pot() / rho();
+}
+
+Real State::phi(const _3Vec& x) const {
+    return (pot() - rot_pot(x)) / rho();
+}
+
+Real State::tau() const {
+    return (*this)[tau_index];
+}
+
+Real State::lz() {
+    return (*this)[lz_index];
+}
+
+Real State::set_lz_from_cartesian(const _3Vec& X) {
+    set_lz(X[0] * sy() - X[1] * sx());
+    return lz();
+}
+
+Real State::virial(const _3Vec& x) const {
+    Real ek = (vx(x) * vx(x) + vy(x) * vy(x) + vz() * vz()) * 0.5 * rho() + 1.5 * pd();
+    Real ep = 0.5 * (pot() - rot_pot(x));
+    return 2.0 * ek + ep;
+}
+
+void State::set_gamma(Real g) {
+    gamma = g;
+}
+
+State::~State() {
+
+}
+
+void State::set_drift_vel(const _3Vec& v) {
+    drift_vel = v;
+}
+
+Real State::get_omega() {
+    return omega;
+}
+
+void State::set_frac(int f, Real a) {
+    (*this)[frac_index + f] = a;
+}
+
+Real State::frac(int i) const {
+    return (*this)[frac_index + i];
+}
+
+Vector<Real, STATE_NF> State::x_flux(const _3Vec& X) const {
     Vector<Real, STATE_NF> flux;
     const Real v = vx(X);
     flux = (*this) * (v - drift_vel[0]);
-    if (State::cylindrical) {
-        flux[sy_index] -= X[1] * pg(X);
-    } else {
-        flux[sx_index] += pg(X);
-    }
+    flux[sx_index] += pg(X);
+    flux[lz_index] -= X[1] * pg(X);
     flux[et_index] += v * pg(X);
     return flux;
 }
 
-Vector<Real, STATE_NF> State::y_vector_flux(const _3Vec& X) const {
+Vector<Real, STATE_NF> State::y_flux(const _3Vec& X) const {
     Vector<Real, STATE_NF> flux;
     const Real v = vy(X);
     flux = (*this) * (v - drift_vel[1]);
-    if (State::cylindrical) {
-        flux[sy_index] += X[0] * pg(X);
-    } else {
-        flux[sy_index] += pg(X);
-    }
+    flux[sy_index] += pg(X);
+    flux[lz_index] += X[0] * pg(X);
     flux[et_index] += v * pg(X);
     return flux;
 }
 
-Vector<Real, STATE_NF> State::z_vector_flux(const _3Vec& X) const {
+Vector<Real, STATE_NF> State::z_flux(const _3Vec& X) const {
     Vector<Real, STATE_NF> flux;
     const Real v = vz();
     flux = (*this) * (v - drift_vel[2]);
@@ -87,46 +153,31 @@ Vector<Real, STATE_NF> State::z_vector_flux(const _3Vec& X) const {
 
 Vector<Real, STATE_NF> State::source(const _3Vec& X, Real t) const {
     Vector<Real, STATE_NF> s = 0.0;
-    if (!cylindrical) {
-        s[sx_index] += omega * (*this)[sy_index];
-        s[sy_index] -= omega * (*this)[sx_index];
-    } else {
-        Real R = sqrt(X[0] * X[0] + X[1] * X[1]);
-        s[sx_index] += pow((*this)[sy_index], 2) / (rho() * pow(R, 3));
-    }
+    s[sx_index] += omega * (*this)[sy_index];
+    s[sy_index] -= omega * (*this)[sx_index];
 #ifdef DRIVING
     const Real period = 2.0 * M_PI / omega;
     if (t < DRIVING_TIME * period) {
-        if (cylindrical) {
-            s[sy_index] -= (*this)[sy_index] * DRIVING / period;
-        } else {
-            printf("Error in state - cartesian not yet supported for drivingt\n");
-            abort();
-        }
+        s[lz_index] -= (*this)[sy_index] * DRIVING / period;
     }
 #endif
     return s;
 }
 
 const char* State::field_name(int i) {
-    assert(i >= 0);assert(i < STATE_NF);
+    assert(i >= 0);
+    assert(i < STATE_NF);
     switch (i) {
     case State::d_index:
         return "d";
     case et_index:
         return "et";
     case sx_index:
-        if (cylindrical) {
-            return "sr";
-        } else {
-            return "sx";
-        }
+        return "sx";
     case sy_index:
-        if (cylindrical) {
-            return "lz";
-        } else {
-            return "sy";
-        }
+        return "sy";
+    case lz_index:
+        return "lz";
     case tau_index:
         return "tau";
     case sz_index:
@@ -143,8 +194,8 @@ const char* State::field_name(int i) {
     }
 }
 
-void State::enforce_dual_energy_formalism(const _3Vec& X, const State& n1, const State& n2, const State& n3, const State& n4,
-        const State& n5, const State& n6) {
+void State::enforce_dual_energy_formalism(const _3Vec& X, const State& n1, const State& n2, const State& n3, const State& n4, const State& n5,
+        const State& n6) {
     Real max_et;
     max_et = max(et(), n1.et());
     max_et = max(max_et, n2.et());
@@ -158,6 +209,20 @@ void State::enforce_dual_energy_formalism(const _3Vec& X, const State& n1, const
 }
 
 void State::floor(const _3Vec& X) {
+
+    Real v_x = (*this)[sx_index] / rho();
+    Real v_y = (*this)[sy_index] / rho();
+    Real v_t, v_r, cos0, sin0, R;
+    R = sqrt(X[0] * X[0] + X[1] * X[1]);
+    cos0 = X[0] / R;
+    sin0 = X[1] / R;
+    Real sR = rho() * (v_x * cos0 + v_y * sin0);
+    v_t = (*this)[lz_index] / R / rho();
+    v_r = sR / rho();
+    v_x = v_r * cos0 - v_t * sin0;
+    v_y = v_r * sin0 + v_t * cos0;
+    (*this)[sx_index] = rho() * v_x;
+    (*this)[sy_index] = rho() * v_y;
     Real rho1, rho2;
     Real de = pot();
     (*this)[d_index] = max((*this)[d_index], rho_floor);
@@ -218,29 +283,13 @@ Real State::et() const {
 
 Real State::vx(const _3Vec& X) const {
     Real v_x;
-    if (cylindrical) {
-        Real sr, st, R;
-        R = sqrt(X[0] * X[0] + X[1] * X[1]);
-        sr = sx();
-        st = sy() / R;
-        v_x = (X[0] * sr - X[1] * st) / R / rho();
-    } else {
-        v_x = sx() / rho();
-    }
+    v_x = (*this)[sx_index] / rho();
     return v_x + X[1] * omega;
 }
 
 Real State::vy(const _3Vec& X) const {
     Real v_y;
-    if (cylindrical) {
-        Real sr, st, R;
-        R = sqrt(X[0] * X[0] + X[1] * X[1]);
-        sr = sx();
-        st = sy() / R;
-        v_y = (X[1] * sr + X[0] * st) / R / rho();
-    } else {
-        v_y = sy() / rho();
-    }
+    v_y = (*this)[sy_index] / rho();
     return v_y - X[0] * omega;
 }
 
@@ -296,7 +345,7 @@ Real State::pg(const _3Vec& X) const {
 Real State::cs(const _3Vec& X) const {
     Real x, dp_depsilon, dp_drho, cs2;
     x = pow(rho() / PhysicalConstants::B, 1.0 / 3.0);
-    dp_drho = max(((8.0 * PhysicalConstants::A) / (3.0 * PhysicalConstants::B)) * x * x / sqrt(x * x + 1.0) + gamma * (gamma - 1.0) * ei(X) / rho(), 0.0);
+    dp_drho = max(((8.0 * PhysicalConstants::A) / (3.0 * PhysicalConstants::B)) * x * x / sqrt(x * x + 1.0) + (gamma - 1.0) * ei(X) / rho(), 0.0);
     dp_depsilon = (gamma - 1.0) * rho();
     cs2 = (pg(X) / (rho() * rho())) * dp_depsilon + dp_drho;
     return sqrt(cs2);
@@ -329,6 +378,14 @@ void State::set_sy(Real a) {
     (*this)[sy_index] = a;
 }
 
+void State::set_lz(Real a) {
+    (*this)[lz_index] = a;
+}
+
+void State::set_tau(Real a) {
+    (*this)[tau_index] = a;
+}
+
 void State::set_sz(Real a) {
     (*this)[sz_index] = a;
 }
@@ -337,34 +394,20 @@ void State::set_et(Real a) {
     (*this)[et_index] = a;
 }
 
-void State::set_tau(Real a) {
-    (*this)[tau_index] = a;
-}
-
 void State::to_prim(const _3Vec& X) {
-//	(*this).to_cartesian(X);
     for (int i = 1; i < STATE_NF; i++) {
         (*this)[i] /= rho();
     }
-    if (cylindrical) {
-        (*this)[sy_index] -= omega * (X[0] * X[0] + X[1] * X[1]);
-    } else {
-        (*this)[sx_index] += X[1] * omega;
-        (*this)[sy_index] -= X[0] * omega;
-    }
+    (*this)[lz_index] -= omega * (X[0] * X[0] + X[1] * X[1]);
+    (*this)[sx_index] += X[1] * omega;
+    (*this)[sy_index] -= X[0] * omega;
 }
-
 void State::from_prim(const _3Vec& X) {
-    if (cylindrical) {
-        (*this)[sy_index] += omega * (X[0] * X[0] + X[1] * X[1]);
-    } else {
-        (*this)[sx_index] -= X[1] * omega;
-        (*this)[sy_index] += X[0] * omega;
-    }
+    (*this)[lz_index] += omega * (X[0] * X[0] + X[1] * X[1]);
+    (*this)[sx_index] -= X[1] * omega;
+    (*this)[sy_index] += X[0] * omega;
     for (int i = 1; i < STATE_NF; i++) {
         (*this)[i] *= rho();
     }
-//	(*this).from_cartesian(X);
 }
 
-Real State::omega = 0.0;

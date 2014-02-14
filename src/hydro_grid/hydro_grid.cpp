@@ -121,8 +121,7 @@ HydroGrid::HydroGrid() :
 
 void HydroGrid::deallocate_arrays() {
     for (int i = 0; i < 3; i++) {
-        Fv[i].deallocate();
-        Fs[i].deallocate();
+        F[i].deallocate();
     }
     U.deallocate();
     D.deallocate();
@@ -135,8 +134,7 @@ void HydroGrid::deallocate_arrays() {
 
 void HydroGrid::allocate_arrays() {
     for (int i = 0; i < 3; i++) {
-        Fv[i].allocate();
-        Fs[i].allocate();
+        F[i].allocate();
     }
     U.allocate();
     D.allocate();
@@ -406,8 +404,7 @@ void HydroGrid::flux_compute(int dir) {
                     ql[i].from_prim(x);
                     qr[i].from_prim(x);
                     a = max(ql[i].max_abs_x_eigen(x), qr[i].max_abs_x_eigen(x));
-                    Fv[0](i, j, k) = ((ql[i].x_vector_flux(x) + qr[i].x_vector_flux(x)) - (qr[i] - ql[i]) * a) * 0.5;
-                    Fs[0](i, j, k) = (ql[i].scalar_flux(x) + qr[i].scalar_flux(x)) * 0.5;
+                    F[0](i, j, k) = ((ql[i].x_flux(x) + qr[i].x_flux(x)) - (qr[i] - ql[i]) * a) * 0.5;
 
                 }
             } else if (dir == 1) {
@@ -421,8 +418,7 @@ void HydroGrid::flux_compute(int dir) {
                     ql[i].from_prim(x);
                     qr[i].from_prim(x);
                     a = max(ql[i].max_abs_y_eigen(x), qr[i].max_abs_y_eigen(x));
-                    Fv[1](j, i, k) = ((ql[i].y_vector_flux(x) + qr[i].y_vector_flux(x)) - (qr[i] - ql[i]) * a) * 0.5;
-                    Fs[1](j, i, k) = (ql[i].scalar_flux(x) + qr[i].scalar_flux(x)) * 0.5;
+                    F[1](j, i, k) = ((ql[i].y_flux(x) + qr[i].y_flux(x)) - (qr[i] - ql[i]) * a) * 0.5;
                 }
             } else {
                 for (i = 0; i < GNX; i++) {
@@ -435,8 +431,7 @@ void HydroGrid::flux_compute(int dir) {
                     ql[i].from_prim(x);
                     qr[i].from_prim(x);
                     a = max(ql[i].max_abs_z_eigen(x), qr[i].max_abs_z_eigen(x));
-                    Fv[2](j, k, i) = ((ql[i].z_vector_flux(x) + qr[i].z_vector_flux(x)) - (qr[i] - ql[i]) * a) * 0.5;
-                    Fs[2](j, k, i) = (ql[i].scalar_flux(x) + qr[i].scalar_flux(x)) * 0.5;
+                    F[2](j, k, i) = ((ql[i].z_flux(x) + qr[i].z_flux(x)) - (qr[i] - ql[i]) * a) * 0.5;
                 }
             }
         }
@@ -455,11 +450,11 @@ void HydroGrid::flux_physical_bounds(int dir) {
         for (Indexer3d i(lb, ub); !i.end(); i++) {
             for (int l = 0; l < STATE_NF; l++) {
                 if (U(i)[l] > 0.0) {
-                    (Fv[dir](i))[l] = min(0.0, (Fv[dir](i))[l]);
+                    (F[dir](i))[l] = min(0.0, (F[dir](i))[l]);
                 } else {
-                    (Fv[dir](i))[l] = max(0.0, (Fv[dir](i))[l]);
+                    (F[dir](i))[l] = max(0.0, (F[dir](i))[l]);
                 }
-                            (Fv[dir](i))[l] = 0.0;
+                            (F[dir](i))[l] = 0.0;
             }
         }
     }
@@ -471,11 +466,11 @@ void HydroGrid::flux_physical_bounds(int dir) {
         for (Indexer3d i(lb, ub); !i.end(); i++) {
             for (int l = 0; l < STATE_NF; l++) {
                 if (U(i)[l] > 0.0) {
-                    (Fv[dir](i))[l] = max(0.0, (Fv[dir](i))[l]);
+                    (F[dir](i))[l] = max(0.0, (F[dir](i))[l]);
                 } else {
-                    (Fv[dir](i))[l] = min(0.0, (Fv[dir](i))[l]);
+                    (F[dir](i))[l] = min(0.0, (F[dir](i))[l]);
                 }
-                        (Fv[dir](i))[l] = 0.0;
+                        (F[dir](i))[l] = 0.0;
             }
         }
     }
@@ -494,10 +489,10 @@ void HydroGrid::flux_cf_adjust_send(int dir) {
                 cnt = 0;
                 for (int k = BW; k < GNX - BW; k += 2) {
                     for (int j = BW; j < GNX - BW; j += 2) {
-                        v = +Fv[0](i, j + 0, k + 0);
-                        v += Fv[0](i, j + 1, k + 0);
-                        v += Fv[0](i, j + 0, k + 1);
-                        v += Fv[0](i, j + 1, k + 1);
+                        v = +F[0](i, j + 0, k + 0);
+                        v += F[0](i, j + 1, k + 0);
+                        v += F[0](i, j + 0, k + 1);
+                        v += F[0](i, j + 1, k + 1);
                         v *= 0.25;
                         mpi_buffer[f][cnt] = v;
                         cnt++;
@@ -520,10 +515,10 @@ void HydroGrid::flux_cf_adjust_send(int dir) {
                 cnt = 0;
                 for (int k = BW; k < GNX - BW; k += 2) {
                     for (int j = BW; j < GNX - BW; j += 2) {
-                        v = +Fv[1](j + 0, i, k + 0);
-                        v += Fv[1](j + 1, i, k + 0);
-                        v += Fv[1](j + 0, i, k + 1);
-                        v += Fv[1](j + 1, i, k + 1);
+                        v = +F[1](j + 0, i, k + 0);
+                        v += F[1](j + 1, i, k + 0);
+                        v += F[1](j + 0, i, k + 1);
+                        v += F[1](j + 1, i, k + 1);
                         v *= 0.25;
                         mpi_buffer[f][cnt] = v;
                         cnt++;
@@ -546,10 +541,10 @@ void HydroGrid::flux_cf_adjust_send(int dir) {
                 cnt = 0;
                 for (int k = BW; k < GNX - BW; k += 2) {
                     for (int j = BW; j < GNX - BW; j += 2) {
-                        v = +Fv[2](j + 0, k + 0, i);
-                        v += Fv[2](j + 1, k + 0, i);
-                        v += Fv[2](j + 0, k + 1, i);
-                        v += Fv[2](j + 1, k + 1, i);
+                        v = +F[2](j + 0, k + 0, i);
+                        v += F[2](j + 1, k + 0, i);
+                        v += F[2](j + 0, k + 1, i);
+                        v += F[2](j + 1, k + 1, i);
                         v *= 0.25;
                         mpi_buffer[f][cnt] = v;
                         cnt++;
@@ -659,7 +654,7 @@ void HydroGrid::flux_cf_adjust_recv_wait(int dir) {
                         for (int k = zlb; k <= zub; k++) {
                             for (int j = ylb; j <= yub; j++) {
                                 assert( mpi_amr_buffer[f][ci]);
-                                Fv[dir](i, j, k) = mpi_amr_buffer[f][ci][cnt];
+                                F[dir](i, j, k) = mpi_amr_buffer[f][ci][cnt];
                                 cnt++;
                             }
                         }
@@ -667,7 +662,7 @@ void HydroGrid::flux_cf_adjust_recv_wait(int dir) {
                         i = BW + ((f % 2) + ci.get_y()) * (GNX / 2 - BW);
                         for (int k = zlb; k <= zub; k++) {
                             for (int j = xlb; j <= xub; j++) {
-                                Fv[dir](j, i, k) = mpi_amr_buffer[f][ci][cnt];
+                                F[dir](j, i, k) = mpi_amr_buffer[f][ci][cnt];
                                 cnt++;
                             }
                         }
@@ -675,7 +670,7 @@ void HydroGrid::flux_cf_adjust_recv_wait(int dir) {
                         i = BW + ((f % 2) + ci.get_z()) * (GNX / 2 - BW);
                         for (int k = ylb; k <= yub; k++) {
                             for (int j = xlb; j <= xub; j++) {
-                                Fv[dir](j, k, i) = mpi_amr_buffer[f][ci][cnt];
+                                F[dir](j, k, i) = mpi_amr_buffer[f][ci][cnt];
                                 cnt++;
                             }
                         }
@@ -836,12 +831,9 @@ void HydroGrid::compute_dudt(int dir) {
                 for (i = BW; i < GNX - BW; i++) {
                     x = HydroGrid::X(i, j, k);
                     D(i, j, k) = 0.0;
-                    D(i, j, k) += -(Fv[0](i + 1, j, k) - Fv[0](i, j, k)) / dx;
-                    D(i, j, k) += -(Fv[1](i, j + 1, k) - Fv[1](i, j, k)) / dx;
-                    D(i, j, k) += -(Fv[2](i, j, k + 1) - Fv[2](i, j, k)) / dx;
-                    D(i, j, k) += -State::x_scalar_flux_coeff(x) * (Fs[0](i + 1, j, k) - Fs[0](i, j, k)) / dx;
-                    D(i, j, k) += -State::y_scalar_flux_coeff(x) * (Fs[1](i, j + 1, k) - Fs[1](i, j, k)) / dx;
-                    D(i, j, k) += -State::z_scalar_flux_coeff(x) * (Fs[2](i, j, k + 1) - Fs[2](i, j, k)) / dx;
+                    D(i, j, k) += -(F[0](i + 1, j, k) - F[0](i, j, k)) / dx;
+                    D(i, j, k) += -(F[1](i, j + 1, k) - F[1](i, j, k)) / dx;
+                    D(i, j, k) += -(F[2](i, j, k + 1) - F[2](i, j, k)) / dx;
                     D(i, j, k) += U(i, j, k).source(this->X(i, j, k), get_time());
                 }
             }
@@ -860,40 +852,22 @@ void HydroGrid::compute_flow_off() {
                 if (!zone_is_refined(i, j, k)) {
                     _3Vec x = HydroGrid::X(i, j, k);
                     if (is_phys_bound(XL) && i == BW) {
-                        DFO -= (Fv[0](i, j, k)) * da;
+                        DFO -= (F[0](i, j, k)) * da;
                     }
                     if (is_phys_bound(XU) && i == GNX - BW - 1) {
-                        DFO += (Fv[0](i + 1, j, k)) * da;
+                        DFO += (F[0](i + 1, j, k)) * da;
                     }
                     if (is_phys_bound(YL) && j == BW) {
-                        DFO -= (Fv[1](i, j, k)) * da;
+                        DFO -= (F[1](i, j, k)) * da;
                     }
                     if (is_phys_bound(YU) && j == GNX - BW - 1) {
-                        DFO += (Fv[1](i, j + 1, k)) * da;
+                        DFO += (F[1](i, j + 1, k)) * da;
                     }
                     if (is_phys_bound(ZL) && k == BW) {
-                        DFO -= (Fv[2](i, j, k)) * da;
+                        DFO -= (F[2](i, j, k)) * da;
                     }
                     if (is_phys_bound(ZU) && k == GNX - BW - 1) {
-                        DFO += (Fv[2](i, j, k + 1)) * da;
-                    }
-                    if (is_phys_bound(XL) && i == BW) {
-                        DFO -= State::x_scalar_flux_coeff(x) * (Fs[0](i, j, k)) * da;
-                    }
-                    if (is_phys_bound(XU) && i == GNX - BW - 1) {
-                        DFO += State::x_scalar_flux_coeff(x) * (Fs[0](i + 1, j, k)) * da;
-                    }
-                    if (is_phys_bound(YL) && j == BW) {
-                        DFO -= State::y_scalar_flux_coeff(x) * (Fs[1](i, j, k)) * da;
-                    }
-                    if (is_phys_bound(YU) && j == GNX - BW - 1) {
-                        DFO += State::y_scalar_flux_coeff(x) * (Fs[1](i, j + 1, k)) * da;
-                    }
-                    if (is_phys_bound(ZL) && k == BW) {
-                        DFO -= State::z_scalar_flux_coeff(x) * (Fs[2](i, j, k)) * da;
-                    }
-                    if (is_phys_bound(ZU) && k == GNX - BW - 1) {
-                        DFO += State::z_scalar_flux_coeff(x) * (Fs[2](i, j, k + 1)) * da;
+                        DFO += (F[2](i, j, k + 1)) * da;
                     }
                 }
             }

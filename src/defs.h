@@ -2,8 +2,8 @@
 #define OPTIONS_____H
 
 //#define ROTATING_DISC
-//#define BLAST_WAVE
-#define SOD
+#define BLAST_WAVE
+//#define SOD
 //#define SINGLE_STAR
 //#define BINARY_STAR
 

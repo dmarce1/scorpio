@@ -34,9 +34,7 @@ SUBDIRS := \
 src \
 src/state \
 src/sod \
-src/single_star \
 src/sedov \
-src/rotating_disc \
 src/poisson \
 src/oct_node \
 src/multigrid \
