@@ -12,7 +12,7 @@
 #define PNX 0
 #endif
 
-#define LMAX 8
+#define LMAX 4
 
 #include "../multigrid/multigrid.h"
 

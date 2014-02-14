@@ -358,7 +358,7 @@ void BinaryStar::scf_run(int argc, char* argv[]) {
         MPI_Allreduce(&tmp, &rho0_d, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD );
         Real phi_min_a, phi_min_d, xa, xd;
         find_phimins(&phi_min_a, &xa, &phi_min_d, &xd);
-        C_d = l1_phi * 1.00 + phi_min_d * 0.00;
+        C_d = l1_phi * (DONOR_FILL) + phi_min_d * (1.0 - DONOR_FILL);
         xm_d = l1_x;
         o2 = 2.0 * (phip_d - C_d) / (xp_d * xp_d - l1_x * l1_x);
         omega = sqrt(o2);
@@ -379,7 +379,7 @@ void BinaryStar::scf_run(int argc, char* argv[]) {
             printf("%i %i: l1_phi=%e C_d=%e l1_phi-C_d=%e q=%e mtot=%e omega=%e  C_a=%e B=%e A=%e com_x=%e  virial_error=%e\n", get_root()->get_node_cnt(),
                     iter, l1_phi, C_d, l1_phi - C_d, m_d / m_a, m_d + m_a, omega, C_a, B, A, com_x, verr);
         }
-        if (fabs(verr) < 4.0e-2) {
+        if (fabs(verr) < 2.0e-2) {
             find_mass(0, &m_a, &com_a);
             find_mass(1, &m_d, &com_d);
             com_x = (m_a * com_a + m_d * com_d) / (m_a + m_d);
@@ -482,15 +482,19 @@ void BinaryStar::scf_run(int argc, char* argv[]) {
                         (*g0)(i, j, k)[State::frac_index + 1] = (*g0)(i, j, k).rho() - State::rho_floor / 2.0;
                         (*g0)(i, j, k)[State::frac_index + 0] = State::rho_floor / 2.0;
                     }
-                    Real ei, ek, sy;
+                    Real ei, ek, sy, sx, lz;
+                    sx = -(*g0)(i, j, k).rho() * omega * g0->HydroGrid::yc(i);
+                    sy = +(*g0)(i, j, k).rho() * omega * g0->HydroGrid::xc(i);
                     (*g0)(i, j, k).set_sx(0.0);
+                    lz = g0->HydroGrid::xc(i) * sy - g0->HydroGrid::yc(j) * sx;
+
                     if ((*g0)(i, j, k).rho() <= 2.0 * State::rho_floor) {
-                        sy = omega * (*g0)(i, j, k).rho() * (g0->HydroGrid::xc(i) * g0->HydroGrid::xc(i) + g0->HydroGrid::yc(j) * g0->HydroGrid::yc(j));
                         ei = max((-g0->phi(i + 1 - BW, j + 1 - BW, k + 1 - BW)) / State::gamma, State::ei_floor) / 100.0;
                     } else {
-                        sy = omega * (*g0)(i, j, k).rho() * (g0->HydroGrid::xc(i) * g0->HydroGrid::xc(i) + g0->HydroGrid::yc(j) * g0->HydroGrid::yc(j));
                         ei = State::ei_floor;
                     }
+                    (*g0)(i, j, k).set_lz(lz);
+                    (*g0)(i, j, k).set_sx(sx);
                     (*g0)(i, j, k).set_sy(sy);
                     (*g0)(i, j, k).set_sz(0.0);
                     ek = (*g0)(i, j, k).ek(g0->X(i, j, k));

@@ -1,11 +1,9 @@
 #ifndef OPTIONS_____H
 #define OPTIONS_____H
 
-//#define ROTATING_DISC
-#define BLAST_WAVE
+//#define BLAST_WAVE
 //#define SOD
-//#define SINGLE_STAR
-//#define BINARY_STAR
+#define BINARY_STAR
 
 #ifndef ROTATING_DISC
 #include "state/state.h"

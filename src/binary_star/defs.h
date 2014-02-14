@@ -17,6 +17,7 @@
 #define DRIVING             0.01
 #define GCON 1.0
 #define DIAGNOSTIC_FREQ 1
+#define DONOR_FILL 0.85
 #define INX                 12
 #define GRID_DIM            (1.0)
 #define MINMOD_THETA        1.3

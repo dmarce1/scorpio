@@ -98,29 +98,31 @@ public:
         case 4:
             return U.sy();
         case 5:
-            return U.sz();
+            return U.lz();
         case 6:
-            return U.et();
+            return U.sz();
         case 7:
+            return U.et();
+        case 8:
             return U[State::tau_index];
 #ifndef USE_FMM
-        case 8:
-            return get_phi(i - BW + 1, j - BW + 1, k - BW + 1);
         case 9:
-            return cosx * gx(i, j, k) + sinx * gy(i, j, k);
+            return get_phi(i - BW + 1, j - BW + 1, k - BW + 1);
         case 10:
-            return glz(i, j, k);
+            return cosx * gx(i, j, k) + sinx * gy(i, j, k);
         case 11:
+            return glz(i, j, k);
+        case 12:
             return gz(i, j, k);
         }
 #else
-        case 8:
-        return get_phi(i, j, k);
         case 9:
-        return cosx*gx(i, j, k)+sinx*gy(i,j,k);
+        return get_phi(i, j, k);
         case 10:
-        return g_lz(i, j, k);
+        return cosx*gx(i, j, k)+sinx*gy(i,j,k);
         case 11:
+        return g_lz(i, j, k);
+        case 12:
         return gz(i, j, k);
     }
 #endif
@@ -136,28 +138,30 @@ public:
         case 2:
             return "CO";
         case 3:
-            return "sR";
+            return "sx";
         case 4:
-            return "lz";
+            return "sy";
         case 5:
-            return "sz";
+            return "lz";
         case 6:
-            return "etot";
+            return "sz";
         case 7:
-            return "tau";
+            return "etot";
         case 8:
-            return "phi";
+            return "tau";
         case 9:
-            return "G_sR";
+            return "phi";
         case 10:
-            return "G_lz";
+            return "G_sR";
         case 11:
+            return "G_lz";
+        case 12:
             return "G_sz";
         }assert(false);
         return "";
     }
     virtual int nvar_output() const {
-        return 12;
+        return 13;
     }
 };
 #endif
