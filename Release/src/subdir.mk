@@ -9,6 +9,7 @@ CPP_SRCS += \
 ../src/legendre.cpp \
 ../src/main.cpp \
 ../src/physical_constants.cpp \
+../src/profiler.cpp \
 ../src/program.cpp \
 ../src/reconstruct.cpp \
 ../src/tag.cpp 
@@ -23,6 +24,7 @@ OBJS += \
 ./src/legendre.o \
 ./src/main.o \
 ./src/physical_constants.o \
+./src/profiler.o \
 ./src/program.o \
 ./src/reconstruct.o \
 ./src/tag.o 
@@ -36,6 +38,7 @@ CPP_DEPS += \
 ./src/legendre.d \
 ./src/main.d \
 ./src/physical_constants.d \
+./src/profiler.d \
 ./src/program.d \
 ./src/reconstruct.d \
 ./src/tag.d 
@@ -45,7 +48,7 @@ CPP_DEPS += \
 src/%.o: ../src/%.cpp
 	@echo 'Building file: $<'
 	@echo 'Invoking: Intel Intel(R) 64 C++ Compiler '
-	mpic++ -O3 -opt-prefetch=3 -ipo -inline-level=2 -I"/home/dmarce1/Scorpio/src" -DNDEBUG -fp-speculation=fast -fp-model fast=2 -xHost -openmp -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -c -o "$@" "$<"
+	mpic++ -O3 -opt-prefetch=3 -ipo -inline-level=2 -I"/home/dmarce1/Scorpio/src" -DNDEBUG -fp-speculation=fast -fp-model fast=2 -xHost -openmp-stubs -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -c -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 
