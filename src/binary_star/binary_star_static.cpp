@@ -5,7 +5,7 @@
 #ifdef HYDRO_GRAV_GRID
 #ifdef BINARY_STAR
 
-#define CHECKPT_FREQ 512
+#define CHECKPT_FREQ 100
 
 //static Real MA = 1.04;
 //static Real MD = 0.20;
@@ -21,6 +21,252 @@ Real BinaryStar::Ax, BinaryStar::Bx, BinaryStar::Cx, BinaryStar::Aphi, BinarySta
 _3Vec BinaryStar::a0, BinaryStar::d0, BinaryStar::com_vel_correction = 0.0;
 Real BinaryStar::lz_t0 = 0.0;
 Real BinaryStar::code_to_cm, BinaryStar::code_to_s, BinaryStar::code_to_K, BinaryStar::code_to_g;
+
+void find_eigenvectors(double q[3][3], double e[3][3], double lambda[3]) {
+    double b0[3], b1[3], A, bdif;
+    int iter = 0;
+    for (int l = 0; l < 3; l++) {
+        b0[0] = b0[1] = b0[2] = 0.0;
+        b0[l] = 1.0;
+        do {
+            iter++;
+            for (int i = 0; i < 3; i++) {
+                b1[i] = 0.0;
+            }
+            for (int i = 0; i < 3; i++) {
+                for (int m = 0; m < 3; m++) {
+                    b1[i] += q[i][m] * b0[m];
+                }
+            }
+            A = 0.0;
+            for (int i = 0; i < 3; i++) {
+                A += b1[i] * b1[i];
+            }
+            A = sqrt(A);
+            bdif = 0.0;
+            for (int i = 0; i < 3; i++) {
+                b1[i] = b1[i] / A;
+                bdif += pow(b0[i] - b1[i], 2);
+            }
+            for (int i = 0; i < 3; i++) {
+                b0[i] = b1[i];
+            }
+
+        } while (fabs(bdif) > 1.0e-10);
+        for (int m = 0; m < 3; m++) {
+            e[l][m] = b0[m];
+        }
+        for (int i = 0; i < 3; i++) {
+            A += b0[i] * q[l][i];
+        }
+        lambda[l] = sqrt(A) / sqrt(e[l][0] * e[l][0] + e[l][1] * e[l][1] + e[l][2] * e[l][2]);
+    }
+}
+
+void BinaryStar::compute_axis(Real dt, Real* theta, Real* theta_dot) {
+
+    BinaryStar* g;
+    Real Q[3][3] = { { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 } }, e[3][3], lambda[3];
+    Real Q0[3][3] = { { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 } }, e0[3][3], lambda0[3];
+    Real outbuf[6], inbuf[6];
+    int cnt;
+    double tstart = MPI_Wtime();
+    for (int l = 0; l < get_local_node_cnt(); l++) {
+        g = dynamic_cast<BinaryStar*>(get_local_node(l));
+        for (int k = BW; k < GNX - BW; k++) {
+            for (int j = BW; j < GNX - BW; j++) {
+                for (int i = BW; i < GNX - BW; i++) {
+                    if (g->zone_is_refined(i, j, k)) {
+                        continue;
+                    }
+                    _3Vec x = g->X(i, j, k);
+                    Real r2 = x.dot(x);
+                    Real dm = g->U(i, j, k).rho() * pow(g->get_dx(), 3);
+                    Real dm0 = g->U0(i, j, k).rho() * pow(g->get_dx(), 3);
+                    for (int n = 0; n < 3; n++) {
+                        for (int m = n; m < 3; m++) {
+                            Q[n][m] += 3.0 * x[n] * x[m] * dm;
+                            Q0[n][m] += 3.0 * x[n] * x[m] * dm0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    cnt = 0;
+    for (int n = 0; n < 3; n++) {
+        for (int m = n; m < 3; m++) {
+            outbuf[cnt] = Q[n][m];
+            cnt++;
+        }
+    }
+    MPI_Allreduce(outbuf, inbuf, 6, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD );
+    cnt = 0;
+    for (int n = 0; n < 3; n++) {
+        for (int m = n; m < 3; m++) {
+            Q[n][m] = Q[m][n] = inbuf[cnt];
+            cnt++;
+        }
+    }
+    find_eigenvectors(Q, e, lambda);
+    cnt = 0;
+    for (int n = 0; n < 3; n++) {
+        for (int m = n; m < 3; m++) {
+            outbuf[cnt] = Q0[n][m];
+            cnt++;
+        }
+    }
+    MPI_Allreduce(outbuf, inbuf, 6, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD );
+    cnt = 0;
+    for (int n = 0; n < 3; n++) {
+        for (int m = n; m < 3; m++) {
+            Q0[n][m] = Q0[m][n] = inbuf[cnt];
+            cnt++;
+        }
+    }
+    find_eigenvectors(Q0, e0, lambda0);
+    int ei;
+    if (lambda[0] > lambda[1] && lambda[0] > lambda[2]) {
+        ei = 0;
+    } else if (lambda[1] > lambda[0] && lambda[1] > lambda[2]) {
+        ei = 1;
+    } else {
+        ei = 2;
+    }
+    *theta = asin(e[ei][1]);
+    *theta_dot = (asin(e[ei][1]) - asin(e0[ei][1])) / dt;
+    if (MPI_rank() == 0) {
+        FILE* fp = fopen("eigen.dat", "at");
+        fprintf(fp, "%.6e %.12e %.12e %.12e %.12e   \n", dynamic_cast<BinaryStar*>(get_root())->get_time(), State::omega, State::omega_dot, *theta, *theta_dot);
+        fclose(fp);
+    }
+
+}
+
+void BinaryStar::compute_omega_dot(Real dt) {
+    BinaryStar* g;
+    Real I0, I1, lz0, lz1;
+    I0 = I1 = lz0 = lz1 = 0.0;
+    Real inbuf[4], outbuf[4];
+    for (int l = 0; l < get_local_node_cnt(); l++) {
+        g = dynamic_cast<BinaryStar*>(get_local_node(l));
+        for (int k = BW; k < GNX - BW; k++) {
+            for (int j = BW; j < GNX - BW; j++) {
+                for (int i = BW; i < GNX - BW; i++) {
+                    if (g->zone_is_refined(i, j, k)) {
+                        continue;
+                    }
+                    _3Vec x = g->X(i, j, k);
+                    Real dv = pow(g->get_dx(), 3);
+                    lz0 += g->U0(i, j, k).lz() * dv;
+                    lz1 += g->U(i, j, k).lz() * dv;
+                    I0 += g->U0(i, j, k).rho() * (x[0] * x[0] + x[1] * x[1]) * dv;
+                    I1 += g->U(i, j, k).rho() * (x[0] * x[0] + x[1] * x[1]) * dv;
+                }
+            }
+        }
+    }
+    outbuf[0] = lz0;
+    outbuf[1] = lz1;
+    outbuf[2] = I0;
+    outbuf[3] = I1;
+    MPI_Allreduce(outbuf, inbuf, 4, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD );
+    lz0 = inbuf[0];
+    lz1 = inbuf[1];
+    I0 = inbuf[2];
+    I1 = inbuf[3];
+
+    Real omega0 = lz0 / I0;
+    Real omega1 = lz1 / I1;
+    Real w = 0.1;
+    omega1 = w * omega1 + (1.0 - w) * omega0;
+    State::omega_dot = (omega1 - omega0) / dt;
+    if (MPI_rank() == 0) {
+        FILE* fp = fopen("omega.dat", "at");
+        fprintf(fp, "%.6e %.12e %.12e %.12e %.12e %.12e   \n", dynamic_cast<BinaryStar*>(get_root())->get_time(), State::omega, State::omega_dot, omega0,
+                omega1, dtheta);
+        fclose(fp);
+    }
+    for (int l = 0; l < get_local_node_cnt(); l++) {
+        g = dynamic_cast<BinaryStar*>(get_local_node(l));
+        for (int k = 0; k < GNX; k++) {
+            for (int j = 0; j < GNX; j++) {
+                for (int i = 0; i < GNX; i++) {
+                    State U = g->U0(i, j, k);
+                    _3Vec x = g->X(i, j, k);
+                    Real R2 = x[0] * x[0] + x[1] * x[1];
+                    g->U(i, j, k)[State::et_index] += (U.lz() - U.rho() * R2 * omega0) * (omega1 - omega0);
+                }
+            }
+        }
+    }
+    State::omega = omega1;
+}
+
+Real BinaryStar::compute_I() {
+    BinaryStar* g;
+    Real I, tmp;
+    for (int l = 0; l < get_local_node_cnt(); l++) {
+        g = dynamic_cast<BinaryStar*>(get_local_node(l));
+        g->euler_force_coeff.allocate();
+        for (int k = BW; k < GNX - BW; k++) {
+            for (int j = BW; j < GNX - BW; j++) {
+                for (int i = BW; i < GNX - BW; i++) {
+                    State U = g->U(i, j, k);
+                    _3Vec x = g->X(i, j, k);
+                    Real R2 = x[0] * x[0] + x[1] * x[1];
+                    g->euler_force_coeff(i, j, k) = U.lz() - R2 * State::omega * U.rho();
+                    if (!g->zone_is_refined(i, j, k)) {
+                        I += R2 * State::omega * U.rho();
+                    }
+                }
+            }
+        }
+    }
+    tmp = I;
+    MPI_Allreduce(&tmp, &I, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD );
+    return I;
+}
+
+Real BinaryStar::compute_Idot() {
+    BinaryStar* g;
+    Real Idot, tmp;
+    for (int l = 0; l < get_local_node_cnt(); l++) {
+        g = dynamic_cast<BinaryStar*>(get_local_node(l));
+        for (int k = BW; k < GNX - BW; k++) {
+            for (int j = BW; j < GNX - BW; j++) {
+                for (int i = BW; i < GNX - BW; i++) {
+                    if (g->zone_is_refined(i, j, k)) {
+                        continue;
+                    }
+                    _3Vec x = g->X(i, j, k);
+                    Real R2 = x[0] * x[0] + x[1] * x[1];
+                    Idot += R2 * State::omega * g->D(i, j, k)[State::d_index];
+                }
+            }
+        }
+    }
+    tmp = Idot;
+    MPI_Allreduce(&tmp, &Idot, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD );
+    return Idot;
+}
+
+void BinaryStar::apply_omega_dot(Real odot, Real dt, Real beta) {
+    BinaryStar* g;
+    Real d;
+    for (int l = 0; l < get_local_node_cnt(); l++) {
+        g = dynamic_cast<BinaryStar*>(get_local_node(l));
+        for (int k = 0; k < GNX; k++) {
+            for (int j = 0; j < GNX; j++) {
+                for (int i = 0; i < GNX; i++) {
+                    d = g->euler_force_coeff(i, j, k) * odot;
+                    g->U(i, j, k)[State::et_index] += beta * dt * d;
+                }
+            }
+        }
+        g->euler_force_coeff.deallocate();
+    }
+}
 
 void BinaryStar::assign_fracs(Real Hfrac, Real min_phi, Real max_phi) {
     BinaryStar* g;
@@ -434,11 +680,11 @@ void BinaryStar::scf_run(int argc, char* argv[]) {
         com_x = (m_a * com_a + m_d * com_d) / (m_a + m_d);
         verr = dynamic_cast<BinaryStar*>(get_root())->virial_error();
         //	printf("%e %e %e \n", verr, com_x, 1.0e-6 * h0 / Real(1 << get_max_level_allowed()));
-        if (iter >= 25) {
+        if (iter >= 15) {
             if (fabs(verr) < 1.0e-4 && fabs(com_x) < 5.0e-4 * min_dx) {
                 break;
             }
-            if (iter > 50) {
+            if (iter > 30) {
                 break;
             }
         }
@@ -470,6 +716,7 @@ void BinaryStar::scf_run(int argc, char* argv[]) {
 #ifndef USE_FMM
     dynamic_cast<MultiGrid*>(get_root())->MultiGrid::mult_dx(cm);
 #endif
+    Real dxmin = HydroGrid::h0 / Real(1 << get_max_level_allowed());
     for (int l = 0; l < get_local_node_cnt(); l++) {
         g0 = dynamic_cast<BinaryStar*>(get_local_node(l));
         for (int k = BW; k < GNX - BW; k++) {
@@ -487,9 +734,8 @@ void BinaryStar::scf_run(int argc, char* argv[]) {
                     sy = +(*g0)(i, j, k).rho() * omega * g0->HydroGrid::xc(i);
                     (*g0)(i, j, k).set_sx(0.0);
                     lz = g0->HydroGrid::xc(i) * sy - g0->HydroGrid::yc(j) * sx;
-
-                    if ((*g0)(i, j, k).rho() <= 2.0 * State::rho_floor) {
-                        ei = max((-g0->phi(i + 1 - BW, j + 1 - BW, k + 1 - BW)) / State::gamma, State::ei_floor) / 100.0;
+                    if ((*g0)(i, j, k).rho() < 10.0 * State::rho_floor) {
+                        ei = -g0->get_phi(i - BW + 1, j - BW + 1, k - BW + 1);
                     } else {
                         ei = State::ei_floor;
                     }
@@ -504,6 +750,7 @@ void BinaryStar::scf_run(int argc, char* argv[]) {
             }
         }
     }
+    State::omega0 = State::omega;
     find_mass(0, &m_a, &com_a);
     find_mass(1, &m_d, &com_d);
     com_x = (m_a * com_a + m_d * com_d) / (m_a + m_d);
@@ -565,6 +812,9 @@ void BinaryStar::read_from_file(const char* str, int* i1, int* i2) {
     fread(&com_vel_correction, sizeof(_3Vec), 1, fp);
     fread(&O, sizeof(_3Vec), 1, fp);
     fread(&omega, sizeof(Real), 1, fp);
+    fread(&State::omega0, sizeof(Real), 1, fp);
+    fread(&State::omega_dot, sizeof(Real), 1, fp);
+    fread(&dtheta, sizeof(Real), 1, fp);
     set_origin(O);
     fread(&last_dt, sizeof(Real), 1, fp);
     fread(i1, sizeof(int), 1, fp);
@@ -607,6 +857,9 @@ void BinaryStar::write_to_file(int i1, int i2, const char* idname) {
     fwrite(&com_vel_correction, sizeof(_3Vec), 1, fp);
     fwrite(&O, sizeof(_3Vec), 1, fp);
     fwrite(&omega, sizeof(Real), 1, fp);
+    fwrite(&State::omega0, sizeof(Real), 1, fp);
+    fwrite(&State::omega_dot, sizeof(Real), 1, fp);
+    fwrite(&dtheta, sizeof(Real), 1, fp);
     fwrite(&last_dt, sizeof(Real), 1, fp);
     fwrite(&i1, sizeof(int), 1, fp);
     fwrite(&i2, sizeof(int), 1, fp);
@@ -620,7 +873,7 @@ void BinaryStar::write_to_file(int i1, int i2, const char* idname) {
 void BinaryStar::analyze() {
     BinaryStar* g;
     Real tmp1, tmp2, dv;
-
+#ifndef USE_FMM
     State U;
     _3Vec X;
     tmp1 = tmp2 = 0.0;
@@ -642,7 +895,7 @@ void BinaryStar::analyze() {
     }
     tmp1 /= tmp2;
     State::set_omega(tmp1);
-    //  printf("Omega = %e\n", tmp1);
+//  printf("Omega = %e\n", tmp1);
     for (int m = 0; m < get_local_node_cnt(); m++) {
         g = dynamic_cast<BinaryStar*>(get_local_node(m));
         dv = pow(g->get_dx(), 3);
@@ -775,6 +1028,41 @@ void BinaryStar::analyze() {
         fprintf(fp, "%e %e %e %e %e %e %e %e\n", dynamic_cast<const BinaryStar*>(get_root())->get_time(), State::get_omega(), l1[3], l1[0], l1[1], M1, M2, Mc);
         fclose(fp);
     }
+#endif
+}
+
+void BinaryStar::step(Real dt) {
+    Real I, Idot;
+    Real start_time;
+    Real beta[3] = { 1.0, 0.25, 2.0 / 3.0 };
+    HydroGrid::set_dt(dt);
+    Real omega, omega0, omega_dot, dtheta0;
+    dtheta0 = dtheta;
+    omega = omega0 = State::omega;
+    store();
+    for (int i = 0; i < 3; i++) {
+        HydroGrid::set_beta(beta[i]);
+        I = compute_I();
+        start_time = MPI_Wtime();
+        substep_driver();
+        hydro_time += MPI_Wtime() - start_time;
+        Idot = compute_Idot();
+        omega_dot = -State::omega * Idot / I;
+        dtheta = (dtheta + dt * omega) * beta[i] + dtheta0 * (1.0 - beta[i]);
+        omega = (omega + dt * omega_dot) * beta[i] + omega0 * (1.0 - beta[i]);
+        apply_omega_dot(omega_dot, dt, beta[i]);
+        State::omega = omega;
+        solve_poisson();
+    }
+    State::omega_dot = (omega - omega0) / dt;
+    if (MPI_rank() == 0) {
+        FILE* fp = fopen("omega.dat", "at");
+        fprintf(fp, "%.6e %.12e %.12e %.12e   \n", dynamic_cast<BinaryStar*>(get_root())->get_time(), State::omega, State::omega_dot, dtheta);
+        fclose(fp);
+    }
+
+    HydroGrid::set_time(HydroGrid::get_time() + dt);
+//    HydroGrid::boundary_driver();
 }
 
 void BinaryStar::run(int argc, char* argv[]) {
@@ -877,6 +1165,13 @@ void BinaryStar::run(int argc, char* argv[]) {
         }
         dt = next_dt(&do_output, &last_step, &ostep_cnt, ofreq);
         step(dt);
+        //compute_omega_dot(dt);
+        pot_to_hydro_grid();
+        Real theta, theta_dot;
+        compute_axis(dt, &theta, &theta_dot);
+        //  Real w = 10.0*State::omega;
+        //   State::omega_dot = -w * (w * theta + 2.0 * theta_dot);
+        // State::omega += omega_dot * dt;
 
 #ifndef USE_FMM
         _3Vec com = get_center_of_mass();

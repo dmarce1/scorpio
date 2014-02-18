@@ -26,7 +26,6 @@ private:
 	Reconstruct reconstruct;
 	static void to_conserved_energy();
 	static void from_conserved_energy();
-	static void pot_to_hydro_grid();
 	static void pot_from_hydro_grid();
 	static void set_gravity_source();
 	virtual void initialize();
@@ -43,6 +42,7 @@ private:
 	virtual int nvar_output() const;
 	//virtual void max_dt_compute(int);
 protected:
+    static void pot_to_hydro_grid();
     virtual void create_child(const ChildIndex& c);
 	static void set_origin(const _3Vec& o) {
 		HydroGrid::set_origin(o);

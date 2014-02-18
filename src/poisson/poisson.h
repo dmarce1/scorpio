@@ -8,10 +8,6 @@
 #ifndef POISSON_H_
 #define POISSON_H_
 
-#ifndef PNX
-#define PNX 0
-#endif
-
 #define LMAX 4
 
 #include "../multigrid/multigrid.h"

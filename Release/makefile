@@ -55,7 +55,7 @@ all: Scorpio
 Scorpio: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: Intel Intel(R) 64 C++ Linker'
-	mpic++  -o "Scorpio" $(OBJS) $(USER_OBJS) $(LIBS)
+	mpic++ -O3 -openmp -o "Scorpio" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 

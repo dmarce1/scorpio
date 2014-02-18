@@ -97,6 +97,7 @@ void frame_read(frame_t* frame, const char* filename) {
 void BinaryStar::add_data_point(double x, double y, double z, double h, const State& s, double phi0) {
     // printf("%i\n", get_level());
     //   printf("%e %e\n", get_dx(), h);
+#ifndef USE_FMM
     BinaryStar::set_max_level_allowed(get_level() + 1);
     if (fabs(get_dx() - h) < 1.0e-3 * h) {
         int i = int(((x - HydroGrid::xf(0)) / h));
@@ -114,6 +115,7 @@ void BinaryStar::add_data_point(double x, double y, double z, double h, const St
         }
         dynamic_cast<BinaryStar*>(get_child(c))->add_data_point(x, y, z, h, s, phi0);
     }
+#endif
 }
 
 void BinaryStar::read_silo(const char* name) {

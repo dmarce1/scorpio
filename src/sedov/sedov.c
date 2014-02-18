@@ -1,22 +1,22 @@
-
-void sed_1d_(const __float128* t, const int* N, const __float128* xpos, const __float128* eblast, const __float128* omega,  const __float128*  geom, const __float128* rho0, const __float128* vel0, const __float128* ener0, const __float128* pres0, const __float128* cs0, const __float128* gam0, __float128* den, __float128* ener, __float128* pres, __float128* vel,__float128 *cs);
+typedef long double sfloat;
+void sed_1d_(const sfloat* t, const int* N, const sfloat* xpos, const sfloat* eblast, const sfloat* omega,  const sfloat*  geom, const sfloat* rho0, const sfloat* vel0, const sfloat* ener0, const sfloat* pres0, const sfloat* cs0, const sfloat* gam0, sfloat* den, sfloat* ener, sfloat* pres, sfloat* vel,sfloat *cs);
 
 
 
 
 void sedov_solution( double t, int N, const double* xpos, double E, double rho,  double* dout, double* eout, double* vout ) {
-	__float128 *xpos0, *pout, *csout, *dout0, *eout0, *vout0;
-	__float128 vel0, gam0, pres0, cs0, omega, geom, ener0, t0, E0, rho0;
+	sfloat *xpos0, *pout, *csout, *dout0, *eout0, *vout0;
+	sfloat vel0, gam0, pres0, cs0, omega, geom, ener0, t0, E0, rho0;
 	int i;
-	t0 = (__float128) t;
-	E0 = (__float128) E;
-	rho0 = (__float128) rho;
-	eout0 = (__float128*) malloc( sizeof( __float128 ) * N );
-	dout0 = (__float128*) malloc( sizeof( __float128 ) * N );
-	vout0 = (__float128*) malloc( sizeof( __float128 ) * N );
-	xpos0 = (__float128*) malloc( sizeof( __float128 ) * N );
-	pout = (__float128*) malloc( sizeof( __float128 ) * N );
-	csout = (__float128*) malloc( sizeof( __float128 ) * N );
+	t0 = (sfloat) t;
+	E0 = (sfloat) E;
+	rho0 = (sfloat) rho;
+	eout0 = (sfloat*) malloc( sizeof( sfloat ) * N );
+	dout0 = (sfloat*) malloc( sizeof( sfloat ) * N );
+	vout0 = (sfloat*) malloc( sizeof( sfloat ) * N );
+	xpos0 = (sfloat*) malloc( sizeof( sfloat ) * N );
+	pout = (sfloat*) malloc( sizeof( sfloat ) * N );
+	csout = (sfloat*) malloc( sizeof( sfloat ) * N );
 	vel0 = 0.0;
 	omega = 0.0;
 	geom = 3.0;
@@ -25,7 +25,7 @@ void sedov_solution( double t, int N, const double* xpos, double E, double rho, 
 	pres0 = (gam0 - 1.0)*rho0*ener0;
 	cs0 = sqrt( gam0 * pres0 / rho0 );
 	for( i = 0; i < N; i++ ) {
-		xpos0[i] = (__float128) xpos[i];
+		xpos0[i] = (sfloat) xpos[i];
 	}
 	sed_1d_( &t0, &N, xpos0, &E0, &omega, &geom, &rho0, &vel0, &ener0, &pres0, &cs0, &gam0, dout0, eout0, pout, vout0, csout );
 	free( xpos0 );

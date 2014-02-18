@@ -12,6 +12,9 @@ Real State::rho_floor = 1.0e-12;
 Real State::ei_floor = 1.0e-20;
 _3Vec State::drift_vel = 0.0;
 Real State::omega = 0.0;
+Real State::omega0 = 0.0;
+Real State::omega_dot=0.0;
+
 
 void State::set_omega(Real o) {
     omega = o;
@@ -345,9 +348,9 @@ Real State::pg(const _3Vec& X) const {
 Real State::cs(const _3Vec& X) const {
     Real x, dp_depsilon, dp_drho, cs2;
     x = pow(rho() / PhysicalConstants::B, 1.0 / 3.0);
-    dp_drho = max(((8.0 * PhysicalConstants::A) / (3.0 * PhysicalConstants::B)) * x * x / sqrt(x * x + 1.0) + (gamma - 1.0) * ei(X) / rho(), 0.0);
+    dp_drho = ((8.0 * PhysicalConstants::A) / (3.0 * PhysicalConstants::B)) * x * x / sqrt(x * x + 1.0) + (gamma - 1.0) * ei(X) / rho();
     dp_depsilon = (gamma - 1.0) * rho();
-    cs2 = (pg(X) / (rho() * rho())) * dp_depsilon + dp_drho;
+    cs2 = max((pg(X) / (rho() * rho())) * dp_depsilon + dp_drho, 0.0);
     return sqrt(cs2);
 }
 
@@ -394,20 +397,32 @@ void State::set_et(Real a) {
     (*this)[et_index] = a;
 }
 
-void State::to_prim(const _3Vec& X) {
-    for (int i = 1; i < STATE_NF; i++) {
-        (*this)[i] /= rho();
-    }
-    (*this)[lz_index] -= omega * (X[0] * X[0] + X[1] * X[1]);
-    (*this)[sx_index] += X[1] * omega;
-    (*this)[sy_index] -= X[0] * omega;
-}
-void State::from_prim(const _3Vec& X) {
-    (*this)[lz_index] += omega * (X[0] * X[0] + X[1] * X[1]);
-    (*this)[sx_index] -= X[1] * omega;
-    (*this)[sy_index] += X[0] * omega;
-    for (int i = 1; i < STATE_NF; i++) {
-        (*this)[i] *= rho();
-    }
+Real R(_3Vec x) {
+    return sqrt(x[0] * x[0] + x[1] * x[1]);
 }
 
+void State::from_prim(const _3Vec& x) {
+    (*this)[sz_index] *= rho();
+    (*this)[pot_index] *= rho();
+    (*this)[sx_index] -= State::omega * x[1];
+    (*this)[sy_index] += State::omega * x[0];
+    (*this)[lz_index] += State::omega * R(x);
+    (*this)[sx_index] *= rho();
+    (*this)[sy_index] *= rho();
+    (*this)[lz_index] *= rho() * R(x);
+    (*this)[et_index] += ek(x);
+    (*this)[tau_index] = pow((*this)[tau_index], 1.0 / gamma);
+}
+
+void State::to_prim(const _3Vec& x) {
+    (*this)[tau_index] = pow((*this)[tau_index], gamma);
+    (*this)[et_index] -= ek(x);
+    (*this)[sx_index] /= rho();
+    (*this)[sy_index] /= rho();
+    (*this)[lz_index] /= rho() * R(x);
+    (*this)[sx_index] += State::omega * x[1];
+    (*this)[sy_index] -= State::omega * x[0];
+    (*this)[lz_index] -= State::omega * R(x);
+    (*this)[sz_index] /= rho();
+    (*this)[pot_index] /= rho();
+}

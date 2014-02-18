@@ -29,6 +29,8 @@ public:
     static const int frac_index = STATE_NF - NFRAC;
     static _3Vec drift_vel;
     static Real omega;
+    static Real omega0;
+    static Real omega_dot;
 public:
     static void set_gamma(Real g);
     static void set_drift_vel(const _3Vec& v);

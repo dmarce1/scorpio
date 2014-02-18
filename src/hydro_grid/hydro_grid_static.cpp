@@ -28,8 +28,7 @@ HydroGrid::ifunc_t HydroGrid::es[GRID_ES_SIZE] = { &HydroGrid::inject_from_child
 HydroGrid::ifunc_t HydroGrid::cs[GRID_CS_SIZE] = { &HydroGrid::flux_bnd_comm, &HydroGrid::physical_boundary, &HydroGrid::flux_bnd_recv_wait,
         &HydroGrid::flux_bnd_send_wait, &HydroGrid::amr_bnd_send, &HydroGrid::amr_bnd_send_wait, &HydroGrid::flux_compute, &HydroGrid::flux_cf_adjust_recv,
         &HydroGrid::flux_cf_adjust_recv_wait, &HydroGrid::flux_cf_adjust_send, &HydroGrid::flux_cf_adjust_send_wait, &HydroGrid::sync, &HydroGrid::compute_dudt,
-        &HydroGrid::error_from_parent_recv, &HydroGrid::error_from_parent_recv_wait, &HydroGrid::error_from_parent_send,
-        &HydroGrid::error_from_parent_send_wait, &HydroGrid::compute_update, &HydroGrid::inject_from_children_recv, &HydroGrid::inject_from_children_recv_wait,
+        &HydroGrid::compute_update, &HydroGrid::inject_from_children_recv, &HydroGrid::inject_from_children_recv_wait,
         &HydroGrid::inject_from_children_send, &HydroGrid::inject_from_children_send_wait };
 
 HydroGrid::ifunc_t HydroGrid::cs_children[4] = { &HydroGrid::inject_from_children_recv, &HydroGrid::inject_from_children_recv_wait,
@@ -88,13 +87,10 @@ void HydroGrid::store() {
     FO0 = FO;
     for (int i = 0; i < OctNode::get_local_node_cnt(); i++) {
         g = dynamic_cast<HydroGrid*>(OctNode::get_local_node(i));
+#pragma omp parallel for collapse(2)
         for (int k = BW; k < GNX - BW; k++) {
             for (int j = BW; j < GNX - BW; j++) {
                 for (int i = BW; i < GNX - BW; i++) {
-                    if (shadow) {
-                        g->E0(i, j, k) = Vector<Real, STATE_NF>(0.0);
-                    }
-                    //          g->U(i, j, k).floor(g->X(i, j, k));
                     g->U0(i, j, k) = g->U(i, j, k);
                 }
             }
@@ -111,7 +107,6 @@ Real HydroGrid::next_dt(bool* do_output, bool* last_step, int* ostep_cnt, Real f
 
     *last_step = false;
     dt = max_dt_driver();
-//	printf( "%e %e\n", dt, last_dt);
     if (last_dt < 0.0) {
         dt = MAXINITDT * dt;
     } else {

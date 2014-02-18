@@ -19,9 +19,17 @@ class BinaryStar: public HydroFMMGrid {
 class BinaryStar: public HydroGravGrid {
 #endif
 public:
+    Array3d<Real, GNX, GNX, GNX> euler_force_coeff;
+    static void compute_axis(Real, Real* theta, Real* theta_dot);
+    static void compute_omega_dot(Real);
+    static Real compute_I();
+    static Real compute_Idot();
+    static void apply_omega_dot(Real,Real,Real);
     static binary_parameters_t bparam;
     static bool bparam_init;
 private:
+    static void step(Real dt);
+    static Real dtheta;
     static Real refine_floor;
     static Real code_to_cm, code_to_s, code_to_K, code_to_g;
     static Real lz_t0;
@@ -157,7 +165,8 @@ public:
             return "G_lz";
         case 12:
             return "G_sz";
-        }assert(false);
+        }
+        assert(false);
         return "";
     }
     virtual int nvar_output() const {

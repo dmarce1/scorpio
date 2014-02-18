@@ -10,9 +10,7 @@ RM := rm -rf
 -include sources.mk
 -include src/state/subdir.mk
 -include src/sod/subdir.mk
--include src/single_star/subdir.mk
 -include src/sedov/subdir.mk
--include src/rotating_disc/subdir.mk
 -include src/poisson/subdir.mk
 -include src/oct_node/subdir.mk
 -include src/multigrid/subdir.mk

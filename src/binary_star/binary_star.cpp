@@ -9,6 +9,7 @@
 
 binary_parameters_t BinaryStar::bparam;
 bool BinaryStar::bparam_init = false;
+Real BinaryStar::dtheta = 0.0;
 
 void BinaryStar::compute_flow_off() {
     const Real da = get_dx() * get_dx();
@@ -109,13 +110,13 @@ void BinaryStar::set_refine_flags() {
 void BinaryStar::initialize() {
     if (!bparam_init) {
         bparam_init = true;
-        bparam.fill_factor = pow(DONOR_FILL,  3.0);
+        bparam.fill_factor = 1.00;
         binary_parameters_compute(&bparam);
         State::rho_floor = 1.0e-12 * bparam.rho1;
         refine_floor = 1.0e-4 * bparam.rho2;
-        dynamic_cast<HydroGrid*>(get_root())->HydroGrid::mult_dx(bparam.a * 5.0);
+        dynamic_cast<HydroGrid*>(get_root())->HydroGrid::mult_dx(bparam.a * 4.0);
 #ifndef USE_FMM
-        dynamic_cast<MultiGrid*>(get_root())->MultiGrid::mult_dx(bparam.a * 5.0);
+        dynamic_cast<MultiGrid*>(get_root())->MultiGrid::mult_dx(bparam.a * 4.0);
 #endif
         State::set_omega(bparam.omega);
     }

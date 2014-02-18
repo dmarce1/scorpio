@@ -38,12 +38,12 @@ void HydroGrid::inject_from_parent(ChildIndex c) {
     const HydroGrid* p = dynamic_cast<const HydroGrid*>(get_parent());
     Vector<Real, STATE_NF> s1, s2, s3;
     State u;
-    int k, j, k0, j0, i, i0;
-    for (k = BW; k < GNX - BW; k += 2) {
-        for (j = BW; j < GNX - BW; j += 2) {
-            k0 = (BW + k) / 2 + c.get_z() * (GNX / 2 - BW);
-            j0 = (BW + j) / 2 + c.get_y() * (GNX / 2 - BW);
-            for (i = BW, i0 = BW + c.get_x() * (GNX / 2 - BW); i < GNX - BW; i += 2, i0++) {u
+#pragma omp parallel for collapse(2)
+    for (int k = BW; k < GNX - BW; k += 2) {
+        for (int j = BW; j < GNX - BW; j += 2) {
+            int k0 = (BW + k) / 2 + c.get_z() * (GNX / 2 - BW);
+            int j0 = (BW + j) / 2 + c.get_y() * (GNX / 2 - BW);
+            for (int i = BW, i0 = BW + c.get_x() * (GNX / 2 - BW); i < GNX - BW; i += 2, i0++) {u
                 = (*p)(i0, j0, k0);
                 U(i + 0, j + 0, k + 0) = u;
                 U(i + 1, j + 0, k + 0) = u;
@@ -109,6 +109,7 @@ HydroGrid::HydroGrid() :
     offset = 0;
     time = 0.0;
 
+#pragma omp parallel for
     for (int i = 0; i < OCT_NCHILD; i++) {
         send_request[i] = recv_request[i] = MPI_REQUEST_NULL;
         for (int j = 0; j < 3; j++) {
@@ -237,30 +238,14 @@ void HydroGrid::amr_bnd_send(int dir) {
                             for (int i = lb[0]; i <= ub[0]; i++) {
                                 i0 = (o[0] + i) / 2;
                                 tmp = U(i0, j0, k0);
-                              //  int di;
-                               // if (dir == 0) {
-                                  //  di = 2 * ((o[0] + i) % 2) - 1;
-                                  //  tmp2 = U(i0 + di, j0, k0);
-                                //    //    tmp2.to_prim(this->X(i0 + di, j0, k0));
-                              //  } else if (dir == 1) {
-                                   // di = 2 * ((o[1] + j) % 2) - 1;
-                                 //   tmp2 = U(i0, j0 + di, k0);
-                               //     //      tmp2.to_prim(this->X(i0, j0 + di, k0));
-                             //   } else {
-                           //         di = 2 * ((o[2] + k) % 2) - 1;
-                         //           tmp2 = U(i0, j0, k0 + di);
-                                    //        tmp2.to_prim(this->X(0, j0, k0 + di));
-                               // }
-                                //         tmp *= 0.75;
-                                //        tmp2 *= 0.25;
-                                //.       tmp += tmp2;
                                 tmp.to_prim(this->X(i0, j0, k0));
                                 tmp.from_prim(g->X(i, j, k));
                                 mpi_amr_buffer[2 * dir][amr_cnt[dir]][cnt] = tmp;
                                 cnt++;
                             }
                         }
-                    }assert( cnt == sz);
+                    }
+                    assert( cnt == sz);
                     tag = tag_gen(TAG_FLUX, g->get_id(), f);
                     MPI_Isend(mpi_amr_buffer[2 * dir][amr_cnt[dir]], cnt, MPI_state_t, g->proc(), tag, MPI_COMM_WORLD, &(amr_send_request[dir][amr_cnt[dir]]));
                     amr_cnt[dir]++;
@@ -387,19 +372,19 @@ void HydroGrid::flux_bnd_send_wait(int dir) {
 }
 
 void HydroGrid::flux_compute(int dir) {
-    State q0[GNX], ql[GNX], qr[GNX];
-    int k, j, i;
-    _3Vec x;
-    Real a;
-    for (k = BW; k < GNX - BW; k++) {
-        for (j = BW; j < GNX - BW; j++) {
+#pragma omp parallel for collapse(1)
+    for (int k = BW; k < GNX - BW; k++) {
+        for (int j = BW; j < GNX - BW; j++) {
+            State q0[GNX], ql[GNX], qr[GNX];
+            _3Vec x;
+            Real a;
             if (dir == 0) {
-                for (i = 0; i < GNX; i++) {
+                for (int i = 0; i < GNX; i++) {
                     q0[i] = U(i, j, k);
                     q0[i].to_prim(HydroGrid::X(i, j, k));
                 }
                 reconstruct(q0, ql, qr);
-                for (i = BW; i < GNX - BW + 1; i++) {
+                for (int i = BW; i < GNX - BW + 1; i++) {
                     x = HydroGrid::Xfx(i, j, k);
                     ql[i].from_prim(x);
                     qr[i].from_prim(x);
@@ -408,12 +393,12 @@ void HydroGrid::flux_compute(int dir) {
 
                 }
             } else if (dir == 1) {
-                for (i = 0; i < GNX; i++) {
+                for (int i = 0; i < GNX; i++) {
                     q0[i] = U(j, i, k);
                     q0[i].to_prim(HydroGrid::X(j, i, k));
                 }
                 reconstruct(q0, ql, qr);
-                for (i = BW; i < GNX - BW + 1; i++) {
+                for (int i = BW; i < GNX - BW + 1; i++) {
                     x = HydroGrid::Xfy(j, i, k);
                     ql[i].from_prim(x);
                     qr[i].from_prim(x);
@@ -421,12 +406,12 @@ void HydroGrid::flux_compute(int dir) {
                     F[1](j, i, k) = ((ql[i].y_flux(x) + qr[i].y_flux(x)) - (qr[i] - ql[i]) * a) * 0.5;
                 }
             } else {
-                for (i = 0; i < GNX; i++) {
+                for (int i = 0; i < GNX; i++) {
                     q0[i] = U(j, k, i);
                     q0[i].to_prim(HydroGrid::X(j, k, i));
                 }
                 reconstruct(q0, ql, qr);
-                for (i = BW; i < GNX - BW + 1; i++) {
+                for (int i = BW; i < GNX - BW + 1; i++) {
                     x = HydroGrid::Xfz(j, k, i);
                     ql[i].from_prim(x);
                     qr[i].from_prim(x);
@@ -454,7 +439,7 @@ void HydroGrid::flux_physical_bounds(int dir) {
                 } else {
                     (F[dir](i))[l] = max(0.0, (F[dir](i))[l]);
                 }
-                            (F[dir](i))[l] = 0.0;
+                (F[dir](i))[l] = 0.0;
             }
         }
     }
@@ -470,7 +455,7 @@ void HydroGrid::flux_physical_bounds(int dir) {
                 } else {
                     (F[dir](i))[l] = min(0.0, (F[dir](i))[l]);
                 }
-                        (F[dir](i))[l] = 0.0;
+                (F[dir](i))[l] = 0.0;
             }
         }
     }
@@ -674,7 +659,8 @@ void HydroGrid::flux_cf_adjust_recv_wait(int dir) {
                                 cnt++;
                             }
                         }
-                    }assert( cnt == (GNX-2*BW)*(GNX-2*BW)/4);
+                    }
+                    assert( cnt == (GNX-2*BW)*(GNX-2*BW)/4);
                     delete[] mpi_amr_buffer[f][ci];
                 }
             }
@@ -712,107 +698,6 @@ void HydroGrid::redistribute_recv() {
     }
 }
 
-void HydroGrid::error_from_parent_send(int dir) {
-    if (dir == 0 && shadow) {
-        OctNode* child;
-        int cnt, tag, sz;
-        Vector<int, 3> lb, ub, o;
-        for (ChildIndex ci = 0; ci < 8; ci++) {
-            child = get_child(ci);
-            if (child != NULL) {
-                cnt = 0;
-                sz = (GNX / 2 - BW) * (GNX / 2 - BW) * (GNX / 2 - BW);
-                mpi_buffer[ci] = new State[sz];
-                lb = BW;
-                ub = GNX / 2 - 1;
-                o = ci.vec();
-                o *= GNX / 2 - BW;
-                lb += o;
-                ub += o;
-                for (int k = lb[2]; k <= ub[2]; k++) {
-                    for (int j = lb[1]; j <= ub[1]; j++) {
-                        for (int i = lb[0]; i <= ub[0]; i++) {
-                            mpi_buffer[ci][cnt] = D(i, j, k);
-                            cnt++;
-                        }
-                    }
-                }assert(cnt==sz);
-                tag = tag_gen(TAG_ERROR, child->get_id(), 0);
-                MPI_Isend(mpi_buffer[ci], cnt, MPI_state_t, child->proc(), tag, MPI_COMM_WORLD, send_request + ci);
-            }
-        }
-    }
-    inc_instruction_pointer(dir);
-}
-
-void HydroGrid::error_from_parent_recv(int dir) {
-    if (dir == 0 && shadow) {
-        int tag, sz;
-        State u;
-        if (get_level() != 0) {
-            tag = tag_gen(TAG_ERROR, get_id(), 0);
-            sz = (GNX / 2 - BW) * (GNX / 2 - BW) * (GNX / 2 - BW);
-            mpi_buffer[0] = new State[sz];
-            MPI_Irecv(mpi_buffer[0], sz, MPI_state_t, get_parent()->proc(), tag, MPI_COMM_WORLD, recv_request);
-        }
-    }
-    inc_instruction_pointer(dir);
-}
-
-void HydroGrid::error_from_parent_send_wait(int dir) {
-    int flag;
-    if (dir == 0 && shadow) {
-        MPI_Testall(8, send_request, &flag, MPI_STATUS_IGNORE );
-        if (flag) {
-            for (int ci = 0; ci < 8; ci++) {
-                if (get_child(ci) != NULL) {
-                    delete[] mpi_buffer[ci];
-                }
-            }
-        }
-    } else {
-        flag = true;
-    }
-    if (flag) {
-        inc_instruction_pointer(dir);
-    }
-
-}
-
-void HydroGrid::error_from_parent_recv_wait(int dir) {
-    int flag, cnt;
-    State u;
-    if (dir == 0 && shadow) {
-        MPI_Test(recv_request, &flag, MPI_STATUS_IGNORE );
-        if (flag && get_level() != 0) {
-            cnt = 0;
-            for (int k = BW; k < GNX - BW; k += 2) {
-                for (int j = BW; j < GNX - BW; j += 2) {
-                    for (int i = BW; i < GNX - BW; i += 2) {
-                        u = mpi_buffer[0][cnt++];
-                        E(i + 0, j + 0, k + 0) = u - D(i + 0, j + 0, k + 0);
-                        E(i + 1, j + 0, k + 0) = u - D(i + 1, j + 0, k + 0);
-                        E(i + 0, j + 1, k + 0) = u - D(i + 0, j + 1, k + 0);
-                        E(i + 1, j + 1, k + 0) = u - D(i + 1, j + 1, k + 0);
-                        E(i + 0, j + 0, k + 1) = u - D(i + 0, j + 0, k + 1);
-                        E(i + 1, j + 0, k + 1) = u - D(i + 1, j + 0, k + 1);
-                        E(i + 0, j + 1, k + 1) = u - D(i + 0, j + 1, k + 1);
-                        E(i + 1, j + 1, k + 1) = u - D(i + 1, j + 1, k + 1);
-
-                    }
-                }
-            }assert(cnt==(GNX/2-BW)*(GNX/2-BW)*(GNX/2-BW));
-            delete[] mpi_buffer[0];
-        }
-    } else {
-        flag = true;
-    }
-    if (flag) {
-        inc_instruction_pointer(dir);
-    }
-
-}
-
 void HydroGrid::add_to_dudt(int i, int j, int k, const Vector<Real, STATE_NF>& s) {
     D(i, j, k) += s;
 }
@@ -824,11 +709,11 @@ Vector<Real, STATE_NF> HydroGrid::get_dudt(int i, int j, int k) const {
 void HydroGrid::compute_dudt(int dir) {
     if (dir == 0) {
         const Real da = dx * dx;
-        _3Vec x;
-        int k, j, i;
-        for (k = BW; k < GNX - BW; k++) {
-            for (j = BW; j < GNX - BW; j++) {
-                for (i = BW; i < GNX - BW; i++) {
+#pragma omp parallel for collapse(2)
+        for (int k = BW; k < GNX - BW; k++) {
+            for (int j = BW; j < GNX - BW; j++) {
+                _3Vec x;
+                for (int i = BW; i < GNX - BW; i++) {
                     x = HydroGrid::X(i, j, k);
                     D(i, j, k) = 0.0;
                     D(i, j, k) += -(F[0](i + 1, j, k) - F[0](i, j, k)) / dx;
@@ -846,27 +731,34 @@ void HydroGrid::compute_dudt(int dir) {
 void HydroGrid::compute_flow_off() {
     const Real da = dx * dx;
     int k, j, i;
+#pragma omp parallel for collapse(2)
     for (k = BW; k < GNX - BW; k++) {
         for (j = BW; j < GNX - BW; j++) {
             for (i = BW; i < GNX - BW; i++) {
                 if (!zone_is_refined(i, j, k)) {
                     _3Vec x = HydroGrid::X(i, j, k);
                     if (is_phys_bound(XL) && i == BW) {
+#pragma omp critical
                         DFO -= (F[0](i, j, k)) * da;
                     }
                     if (is_phys_bound(XU) && i == GNX - BW - 1) {
+#pragma omp critical
                         DFO += (F[0](i + 1, j, k)) * da;
                     }
                     if (is_phys_bound(YL) && j == BW) {
+#pragma omp critical
                         DFO -= (F[1](i, j, k)) * da;
                     }
                     if (is_phys_bound(YU) && j == GNX - BW - 1) {
+#pragma omp critical
                         DFO += (F[1](i, j + 1, k)) * da;
                     }
                     if (is_phys_bound(ZL) && k == BW) {
+#pragma omp critical
                         DFO -= (F[2](i, j, k)) * da;
                     }
                     if (is_phys_bound(ZU) && k == GNX - BW - 1) {
+#pragma omp critical
                         DFO += (F[2](i, j, k + 1)) * da;
                     }
                 }
@@ -877,16 +769,12 @@ void HydroGrid::compute_flow_off() {
 
 void HydroGrid::compute_update(int dir) {
     if (dir == 0) {
-        int k, j, i;
-        for (k = BW; k < GNX - BW; k++) {
-            for (j = BW; j < GNX - BW; j++) {
-                for (i = BW; i < GNX - BW; i++) {
+#pragma omp parallel for collapse(2)
+        for (int k = BW; k < GNX - BW; k++) {
+            for (int j = BW; j < GNX - BW; j++) {
+                for (int i = BW; i < GNX - BW; i++) {
                     U(i, j, k) = (U(i, j, k) + D(i, j, k) * _dt) * _beta + U0(i, j, k) * (1.0 - _beta);
-                    if (shadow) {
-                        E0(i, j, k) = E0(i, j, k) * (1.0 - _beta) + E(i, j, k) * _beta;
-                    }
                     U(i, j, k).floor(X(i, j, k));
-
                 }
             }
         }
@@ -897,6 +785,7 @@ void HydroGrid::compute_update(int dir) {
 void HydroGrid::enforce_dual_energy_formalism(int dir) {
     if (dir == 0) {
         HydroGrid* g = this;
+#pragma omp parallel for collapse(2)
         for (int k = BW; k < GNX - BW; k++) {
             for (int j = BW; j < GNX - BW; j++) {
                 for (int i = BW; i < GNX - BW; i++) {
@@ -922,20 +811,22 @@ void HydroGrid::set_refine_flags() {
         printf("set_refine_flags not defined\n");
         abort();
     }
-    ChildIndex c;
     if (get_level() < 1) {
         for (int i = 0; i < OCT_NCHILD; i++) {
             set_refine_flag(i, true);
         }
     } else if (get_level() < get_max_level_allowed()) {
+#pragma omp parallel for collapse(2)
         for (int k = BW; k < GNX - BW; k++) {
-            c.set_z(2 * k / GNX);
             for (int j = BW; j < GNX - BW; j++) {
+                ChildIndex c;
+                c.set_z(2 * k / GNX);
                 c.set_y(2 * j / GNX);
                 for (int i = BW; i < GNX - BW; i++) {
                     c.set_x(2 * i / GNX);
                     if (!get_refine_flag(c)) {
                         if (E0(i, j, k).mag() > 10000) {
+#pragma omp critical
                             set_refine_flag(c, true);
                         }
                     }
@@ -1018,12 +909,13 @@ Real HydroGrid::zf(int i) const {
 void HydroGrid::max_dt_compute(int dir) {
     Real this_dt;
     Real dtinv = 0.0;
-    _3Vec x;
-    State q0[GNX], ql[GNX], qr[GNX];
-    int k, j, i;
-    Real this_dtinv;
-    for (k = BW; k < GNX - BW; k++) {
-        for (j = BW; j < GNX - BW; j++) {
+#pragma omp parallel for collapse(1)
+    for (int k = BW; k < GNX - BW; k++) {
+        for (int j = BW; j < GNX - BW; j++) {
+            _3Vec x;
+            State q0[GNX], ql[GNX], qr[GNX];
+            int i;
+            Real this_dtinv;
             this_dtinv = 0.0;
             if (dir == 0) {
                 for (i = 0; i < GNX; i++) {
@@ -1062,6 +954,7 @@ void HydroGrid::max_dt_compute(int dir) {
                     this_dtinv = max(this_dtinv, ql[i].max_abs_z_eigen(x), qr[i].max_abs_z_eigen(x));
                 }
             }
+#pragma omp critical
             dtinv = max(this_dtinv, dtinv);
         }
     }
@@ -1080,14 +973,14 @@ void HydroGrid::reduce_dt(Real dt) {
 }
 
 void HydroGrid::physical_boundary(int dir) {
-    Vector<int, 3> lb, ub, k;
+    Vector<int, 3> lb, ub;
     if (is_phys_bound(2 * dir + 0)) {
         lb = BW;
         ub = GNX - BW - 1;
         lb[dir] = 0;
         ub[dir] = BW - 1;
         for (Indexer3d i(lb, ub); !i.end(); i++) {
-            k = i;
+            Vector<int, 3> k = i;
             k[dir] = BW;
             U(i[0], i[1], i[2]) = U(k[0], k[1], k[2]);
         }
@@ -1098,7 +991,7 @@ void HydroGrid::physical_boundary(int dir) {
         lb[dir] = GNX - BW;
         ub[dir] = GNX - 1;
         for (Indexer3d i(lb, ub); !i.end(); i++) {
-            k = i;
+            Vector<int, 3> k = i;
             k[dir] = GNX - BW - 1;
             U(i[0], i[1], i[2]) = U(k[0], k[1], k[2]);
         }

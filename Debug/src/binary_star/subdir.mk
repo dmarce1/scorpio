@@ -7,19 +7,22 @@ CPP_SRCS += \
 ../src/binary_star/binary_star.cpp \
 ../src/binary_star/binary_star_read.cpp \
 ../src/binary_star/binary_star_static.cpp \
-../src/binary_star/dwd.cpp 
+../src/binary_star/dwd.cpp \
+../src/binary_star/lane_emden.cpp 
 
 OBJS += \
 ./src/binary_star/binary_star.o \
 ./src/binary_star/binary_star_read.o \
 ./src/binary_star/binary_star_static.o \
-./src/binary_star/dwd.o 
+./src/binary_star/dwd.o \
+./src/binary_star/lane_emden.o 
 
 CPP_DEPS += \
 ./src/binary_star/binary_star.d \
 ./src/binary_star/binary_star_read.d \
 ./src/binary_star/binary_star_static.d \
-./src/binary_star/dwd.d 
+./src/binary_star/dwd.d \
+./src/binary_star/lane_emden.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes

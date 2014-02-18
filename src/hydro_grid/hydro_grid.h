@@ -8,7 +8,7 @@
 
 #ifdef USE_HYDRO_GRID
 
-#define GRID_CS_SIZE 22
+#define GRID_CS_SIZE 18
 #define GRID_ES_SIZE 14
 
 #ifndef GNX

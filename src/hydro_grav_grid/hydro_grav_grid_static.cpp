@@ -51,6 +51,7 @@ bool HydroGravGrid::check_for_refine() {
     bool rc;
     to_conserved_energy();
     rc = OctNode::check_for_refine();
+    inject_from_children();
     if (rc) {
         pot_to_hydro_grid();
         HydroGrid::redistribute_grids();
@@ -225,7 +226,7 @@ void HydroGravGrid::step(Real dt) {
     store();
     for (int i = 0; i < 3; i++) {
         if (MPI_rank() == 0) {
-            //	printf("\t rk = %i", i + 1);
+            //  printf("\t rk = %i", i + 1);
         }
         HydroGrid::set_beta(beta[i]);
         start_time = MPI_Wtime();
