@@ -9,7 +9,6 @@ CPP_SRCS += \
 ../src/legendre.cpp \
 ../src/main.cpp \
 ../src/physical_constants.cpp \
-../src/profiler.cpp \
 ../src/program.cpp \
 ../src/reconstruct.cpp \
 ../src/tag.cpp 
@@ -24,7 +23,6 @@ OBJS += \
 ./src/legendre.o \
 ./src/main.o \
 ./src/physical_constants.o \
-./src/profiler.o \
 ./src/program.o \
 ./src/reconstruct.o \
 ./src/tag.o 
@@ -38,7 +36,6 @@ CPP_DEPS += \
 ./src/legendre.d \
 ./src/main.d \
 ./src/physical_constants.d \
-./src/profiler.d \
 ./src/program.d \
 ./src/reconstruct.d \
 ./src/tag.d 
