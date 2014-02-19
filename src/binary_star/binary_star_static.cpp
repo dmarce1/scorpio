@@ -674,7 +674,7 @@ void BinaryStar::scf_run(int argc, char* argv[]) {
                         (*g0)(i, j, k)[State::frac_index + 0] = State::rho_floor / 2.0;
                     }
                     Real ei, ek, sy, sx, lz;
-                    sx = -(*g0)(i, j, k).rho() * omega * g0->HydroGrid::yc(i);
+                    sx = -(*g0)(i, j, k).rho() * omega * g0->HydroGrid::yc(j);
                     sy = +(*g0)(i, j, k).rho() * omega * g0->HydroGrid::xc(i);
                     (*g0)(i, j, k).set_sx(0.0);
                     lz = g0->HydroGrid::xc(i) * sy - g0->HydroGrid::yc(j) * sx;
