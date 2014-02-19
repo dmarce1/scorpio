@@ -296,7 +296,7 @@ void HydroGrid::boundary_driver() {
     for (int i = 0; i < get_local_node_cnt(); i++) {
         list[i] = dynamic_cast<HydroGrid*>(get_local_node(i));
     }
-    run_program(list, get_local_node_cnt(), es, GRID_ES_SIZE - 1, 3);
+    run_program(list, get_local_node_cnt(), es, GRID_ES_SIZE - 2, 3);
     delete[] list;
 }
 

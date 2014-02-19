@@ -114,9 +114,9 @@ void BinaryStar::initialize() {
         binary_parameters_compute(&bparam);
         State::rho_floor = 1.0e-12 * bparam.rho1;
         refine_floor = 1.0e-4 * bparam.rho2;
-        dynamic_cast<HydroGrid*>(get_root())->HydroGrid::mult_dx(bparam.a * 4.0);
+        dynamic_cast<HydroGrid*>(get_root())->HydroGrid::mult_dx(bparam.a * 3.0);
 #ifndef USE_FMM
-        dynamic_cast<MultiGrid*>(get_root())->MultiGrid::mult_dx(bparam.a * 4.0);
+        dynamic_cast<MultiGrid*>(get_root())->MultiGrid::mult_dx(bparam.a * 3.0);
 #endif
         State::set_omega(bparam.omega);
     }

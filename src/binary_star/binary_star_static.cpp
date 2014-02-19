@@ -143,81 +143,23 @@ void BinaryStar::compute_axis(Real dt, Real* theta, Real* theta_dot) {
 
 }
 
-void BinaryStar::compute_omega_dot(Real dt) {
-    BinaryStar* g;
-    Real I0, I1, lz0, lz1;
-    I0 = I1 = lz0 = lz1 = 0.0;
-    Real inbuf[4], outbuf[4];
-    for (int l = 0; l < get_local_node_cnt(); l++) {
-        g = dynamic_cast<BinaryStar*>(get_local_node(l));
-        for (int k = BW; k < GNX - BW; k++) {
-            for (int j = BW; j < GNX - BW; j++) {
-                for (int i = BW; i < GNX - BW; i++) {
-                    if (g->zone_is_refined(i, j, k)) {
-                        continue;
-                    }
-                    _3Vec x = g->X(i, j, k);
-                    Real dv = pow(g->get_dx(), 3);
-                    lz0 += g->U0(i, j, k).lz() * dv;
-                    lz1 += g->U(i, j, k).lz() * dv;
-                    I0 += g->U0(i, j, k).rho() * (x[0] * x[0] + x[1] * x[1]) * dv;
-                    I1 += g->U(i, j, k).rho() * (x[0] * x[0] + x[1] * x[1]) * dv;
-                }
-            }
-        }
-    }
-    outbuf[0] = lz0;
-    outbuf[1] = lz1;
-    outbuf[2] = I0;
-    outbuf[3] = I1;
-    MPI_Allreduce(outbuf, inbuf, 4, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD );
-    lz0 = inbuf[0];
-    lz1 = inbuf[1];
-    I0 = inbuf[2];
-    I1 = inbuf[3];
-
-    Real omega0 = lz0 / I0;
-    Real omega1 = lz1 / I1;
-    Real w = 0.1;
-    omega1 = w * omega1 + (1.0 - w) * omega0;
-    State::omega_dot = (omega1 - omega0) / dt;
-    if (MPI_rank() == 0) {
-        FILE* fp = fopen("omega.dat", "at");
-        fprintf(fp, "%.6e %.12e %.12e %.12e %.12e %.12e   \n", dynamic_cast<BinaryStar*>(get_root())->get_time(), State::omega, State::omega_dot, omega0,
-                omega1, dtheta);
-        fclose(fp);
-    }
-    for (int l = 0; l < get_local_node_cnt(); l++) {
-        g = dynamic_cast<BinaryStar*>(get_local_node(l));
-        for (int k = 0; k < GNX; k++) {
-            for (int j = 0; j < GNX; j++) {
-                for (int i = 0; i < GNX; i++) {
-                    State U = g->U0(i, j, k);
-                    _3Vec x = g->X(i, j, k);
-                    Real R2 = x[0] * x[0] + x[1] * x[1];
-                    g->U(i, j, k)[State::et_index] += (U.lz() - U.rho() * R2 * omega0) * (omega1 - omega0);
-                }
-            }
-        }
-    }
-    State::omega = omega1;
-}
-
 Real BinaryStar::compute_I() {
     BinaryStar* g;
     Real I, tmp;
+    I = 0.0;
     for (int l = 0; l < get_local_node_cnt(); l++) {
         g = dynamic_cast<BinaryStar*>(get_local_node(l));
         g->euler_force_coeff.allocate();
+        Real dv = pow(g->get_dx(), 3);
         for (int k = BW; k < GNX - BW; k++) {
             for (int j = BW; j < GNX - BW; j++) {
                 for (int i = BW; i < GNX - BW; i++) {
                     State U = g->U(i, j, k);
                     _3Vec x = g->X(i, j, k);
                     Real R2 = x[0] * x[0] + x[1] * x[1];
-                    g->euler_force_coeff(i, j, k) = U.lz() - R2 * State::omega * U.rho();
+                    g->euler_force_coeff(i, j, k) = -(U.lz() - R2 * State::omega * U.rho());
                     if (!g->zone_is_refined(i, j, k)) {
-                        I += R2 * State::omega * U.rho();
+                        I += R2 * State::omega * U.rho() * dv;
                     }
                 }
             }
@@ -231,8 +173,10 @@ Real BinaryStar::compute_I() {
 Real BinaryStar::compute_Idot() {
     BinaryStar* g;
     Real Idot, tmp;
+    Idot = 0.0;
     for (int l = 0; l < get_local_node_cnt(); l++) {
         g = dynamic_cast<BinaryStar*>(get_local_node(l));
+        Real dv = pow(g->get_dx(), 3);
         for (int k = BW; k < GNX - BW; k++) {
             for (int j = BW; j < GNX - BW; j++) {
                 for (int i = BW; i < GNX - BW; i++) {
@@ -241,7 +185,7 @@ Real BinaryStar::compute_Idot() {
                     }
                     _3Vec x = g->X(i, j, k);
                     Real R2 = x[0] * x[0] + x[1] * x[1];
-                    Idot += R2 * State::omega * g->D(i, j, k)[State::d_index];
+                    Idot += R2 * State::omega * g->D(i, j, k)[State::d_index] * dv;
                 }
             }
         }
@@ -256,9 +200,9 @@ void BinaryStar::apply_omega_dot(Real odot, Real dt, Real beta) {
     Real d;
     for (int l = 0; l < get_local_node_cnt(); l++) {
         g = dynamic_cast<BinaryStar*>(get_local_node(l));
-        for (int k = 0; k < GNX; k++) {
-            for (int j = 0; j < GNX; j++) {
-                for (int i = 0; i < GNX; i++) {
+        for (int k = BW; k < GNX - BW; k++) {
+            for (int j = BW; j < GNX - BW; j++) {
+                for (int i = BW; i < GNX - BW; i++) {
                     d = g->euler_force_coeff(i, j, k) * odot;
                     g->U(i, j, k)[State::et_index] += beta * dt * d;
                 }
@@ -735,7 +679,7 @@ void BinaryStar::scf_run(int argc, char* argv[]) {
                     (*g0)(i, j, k).set_sx(0.0);
                     lz = g0->HydroGrid::xc(i) * sy - g0->HydroGrid::yc(j) * sx;
                     if ((*g0)(i, j, k).rho() < 10.0 * State::rho_floor) {
-                        ei = -g0->get_phi(i - BW + 1, j - BW + 1, k - BW + 1);
+                        ei = -g0->get_phi(i - BW + 1, j - BW + 1, k - BW + 1) / 100.0;
                     } else {
                         ei = State::ei_floor;
                     }
