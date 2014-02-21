@@ -212,7 +212,7 @@ void HydroGravGrid::set_gravity_source() {
         for (int k = BW; k < GNX - BW; k++) {
             for (int j = BW; j < GNX - BW; j++) {
                 for (int i = BW; i < GNX - BW; i++) {
-                    p->set_source(i - o, j - o, k - o, 4.0 * M_PI * PhysicalConstants::G * (*g)(i, j, k).rho());
+                    p->set_source(i - o, j - o, k - o, 4.0 * M_PI * PhysicalConstants::G * (*g)(i, j, k)[State::d_index]);
                 }
             }
         }

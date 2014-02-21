@@ -45,6 +45,60 @@ void BinaryStar::compute_flow_off() {
     DFO += this_DFO;
 }
 
+void BinaryStar::physical_boundary(int dir) {
+    Vector<int, 3> lb, ub;
+    if (is_phys_bound(2 * dir + 0)) {
+        lb = BW;
+        ub = GNX - BW - 1;
+        lb[dir] = 0;
+        ub[dir] = BW - 1;
+        for (Indexer3d i(lb, ub); !i.end(); i++) {
+            Vector<int, 3> k = i;
+            k[dir] = BW;
+            _3Vec x = X(i[0], i[1], i[2]);
+            U(i[0], i[1], i[2]) = U(k[0], k[1], k[2]);
+            switch (dir) {
+            case 0:
+                U(i[0], i[1], i[2]).set_sx(min(U(i[0], i[1], i[2]).sx(), 0.0));
+                break;
+            case 1:
+                U(i[0], i[1], i[2]).set_sy(min(U(i[0], i[1], i[2]).sy(), 0.0));
+                break;
+            case 2:
+                U(i[0], i[1], i[2]).set_sz(min(U(i[0], i[1], i[2]).sz(), 0.0));
+                break;
+            }
+            U(i[0], i[1], i[2]).set_lz_from_cartesian(x);
+        }
+    }
+    if (is_phys_bound(2 * dir + 1)) {
+        lb = BW;
+        ub = GNX - BW - 1;
+        lb[dir] = GNX - BW;
+        ub[dir] = GNX - 1;
+        for (Indexer3d i(lb, ub); !i.end(); i++) {
+            Vector<int, 3> k = i;
+            k[dir] = GNX - BW - 1;
+            _3Vec x = X(i[0], i[1], i[2]);
+            U(i[0], i[1], i[2]) = U(k[0], k[1], k[2]);
+            switch (dir) {
+            case 0:
+                U(i[0], i[1], i[2]).set_sx(max(U(i[0], i[1], i[2]).sx(), 0.0));
+                break;
+            case 1:
+                U(i[0], i[1], i[2]).set_sy(max(U(i[0], i[1], i[2]).sy(), 0.0));
+                break;
+            case 2:
+                U(i[0], i[1], i[2]).set_sz(max(U(i[0], i[1], i[2]).sz(), 0.0));
+                break;
+            }
+            U(i[0], i[1], i[2]).set_lz_from_cartesian(x);
+        }
+    }
+
+    HydroGrid::inc_instruction_pointer(dir);
+}
+
 BinaryStar::BinaryStar() {
 }
 
@@ -114,9 +168,9 @@ void BinaryStar::initialize() {
         binary_parameters_compute(&bparam);
         State::rho_floor = 1.0e-12 * bparam.rho1;
         refine_floor = 1.0e-4 * bparam.rho2;
-        dynamic_cast<HydroGrid*>(get_root())->HydroGrid::mult_dx(bparam.a * 3.0);
+        dynamic_cast<HydroGrid*>(get_root())->HydroGrid::mult_dx(bparam.a * 2.0);
 #ifndef USE_FMM
-        dynamic_cast<MultiGrid*>(get_root())->MultiGrid::mult_dx(bparam.a * 3.0);
+        dynamic_cast<MultiGrid*>(get_root())->MultiGrid::mult_dx(bparam.a * 2.0);
 #endif
         State::set_omega(bparam.omega);
     }

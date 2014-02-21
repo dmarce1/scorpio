@@ -10,11 +10,10 @@
 Real State::gamma = 5.0 / 3.0;
 Real State::rho_floor = 1.0e-12;
 Real State::ei_floor = 1.0e-20;
-_3Vec State::drift_vel = 0.0;
 Real State::omega = 0.0;
 Real State::omega0 = 0.0;
-Real State::omega_dot=0.0;
-
+Real State::omega_dot = 0.0;
+_3Vec State::com_correction = 0.0;
 
 void State::set_omega(Real o) {
     omega = o;
@@ -86,7 +85,7 @@ Real State::tau() const {
     return (*this)[tau_index];
 }
 
-Real State::lz() {
+Real State::lz() const {
     return (*this)[lz_index];
 }
 
@@ -109,10 +108,6 @@ State::~State() {
 
 }
 
-void State::set_drift_vel(const _3Vec& v) {
-    drift_vel = v;
-}
-
 Real State::get_omega() {
     return omega;
 }
@@ -128,7 +123,7 @@ Real State::frac(int i) const {
 Vector<Real, STATE_NF> State::x_flux(const _3Vec& X) const {
     Vector<Real, STATE_NF> flux;
     const Real v = vx(X);
-    flux = (*this) * (v - drift_vel[0]);
+    flux = (*this) * v;
     flux[sx_index] += pg(X);
     flux[lz_index] -= X[1] * pg(X);
     flux[et_index] += v * pg(X);
@@ -138,7 +133,7 @@ Vector<Real, STATE_NF> State::x_flux(const _3Vec& X) const {
 Vector<Real, STATE_NF> State::y_flux(const _3Vec& X) const {
     Vector<Real, STATE_NF> flux;
     const Real v = vy(X);
-    flux = (*this) * (v - drift_vel[1]);
+    flux = (*this) * v;
     flux[sy_index] += pg(X);
     flux[lz_index] += X[0] * pg(X);
     flux[et_index] += v * pg(X);
@@ -148,7 +143,7 @@ Vector<Real, STATE_NF> State::y_flux(const _3Vec& X) const {
 Vector<Real, STATE_NF> State::z_flux(const _3Vec& X) const {
     Vector<Real, STATE_NF> flux;
     const Real v = vz();
-    flux = (*this) * (v - drift_vel[2]);
+    flux = (*this) * v;
     flux[sz_index] += pg(X);
     flux[et_index] += v * pg(X);
     return flux;
@@ -158,6 +153,12 @@ Vector<Real, STATE_NF> State::source(const _3Vec& X, Real t) const {
     Vector<Real, STATE_NF> s = 0.0;
     s[sx_index] += omega * (*this)[sy_index];
     s[sy_index] -= omega * (*this)[sx_index];
+
+    s[sx_index] += rho() * com_correction[0];
+    s[sy_index] += rho() * com_correction[1];
+    s[sz_index] += rho() * com_correction[2];
+    s[lz_index] += rho() * (X[0] * com_correction[1] - X[1] * com_correction[0]);
+    s[et_index] += -(lz() - rho() * omega * (X[0] * X[0] + X[1] * X[1])) * omega_dot;
 #ifdef DRIVING
     const Real period = 2.0 * M_PI / omega;
     if (t < DRIVING_TIME * period) {
@@ -228,7 +229,7 @@ void State::floor(const _3Vec& X) {
     (*this)[sy_index] = rho() * v_y;
     Real rho1, rho2;
     Real de = pot();
-    (*this)[d_index] = max((*this)[d_index], rho_floor);
+    //  (*this)[d_index] = max((*this)[d_index], rho_floor);
     (*this)[tau_index] = max(pow(ei_floor, 1.0 / gamma), (*this)[tau_index]);
     if (NFRAC > 1) {
         Real tot;
@@ -265,7 +266,7 @@ State::State(const Vector<Real, STATE_NF>& v) :
 }
 
 Real State::rho() const {
-    return (*this)[d_index];
+    return max((*this)[d_index], rho_floor);
 }
 
 Real State::sx() const {
@@ -415,6 +416,7 @@ void State::from_prim(const _3Vec& x) {
 }
 
 void State::to_prim(const _3Vec& x) {
+    (*this)[d_index] = rho();
     (*this)[tau_index] = pow((*this)[tau_index], gamma);
     (*this)[et_index] -= ek(x);
     (*this)[sx_index] /= rho();

@@ -31,7 +31,7 @@
 #define TIME_MAX           	(1.0e+99)
 #define OUTPUT_TIME_FREQ   	(1.0/30.0)
 #define MAXDTINC            (1.25)
-#define GRID_CFL_FACTOR     (1.0/6.0)
+#define GRID_CFL_FACTOR     (0.8/3.0)
 #define MAXINITDT           (1.0e-3)
 #define ZTWD
 //#define NGRID_LIMIT         1000

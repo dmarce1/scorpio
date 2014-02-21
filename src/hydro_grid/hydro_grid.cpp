@@ -426,39 +426,7 @@ void HydroGrid::flux_compute(int dir) {
 }
 
 void HydroGrid::flux_physical_bounds(int dir) {
-    Vector<int, 3> lb, ub;
-    if (is_phys_bound(2 * dir)) {
-        lb = BW;
-        ub = GNX - BW - 1;
-        lb[dir] = BW;
-        ub[dir] = BW;
-        for (Indexer3d i(lb, ub); !i.end(); i++) {
-            for (int l = 0; l < STATE_NF; l++) {
-                if (U(i)[l] > 0.0) {
-                    (F[dir](i))[l] = min(0.0, (F[dir](i))[l]);
-                } else {
-                    (F[dir](i))[l] = max(0.0, (F[dir](i))[l]);
-                }
-                (F[dir](i))[l] = 0.0;
-            }
-        }
-    }
-    if (is_phys_bound(2 * dir + 1)) {
-        lb = BW;
-        ub = GNX - BW - 1;
-        lb[dir] = GNX - BW;
-        ub[dir] = GNX - BW;
-        for (Indexer3d i(lb, ub); !i.end(); i++) {
-            for (int l = 0; l < STATE_NF; l++) {
-                if (U(i)[l] > 0.0) {
-                    (F[dir](i))[l] = max(0.0, (F[dir](i))[l]);
-                } else {
-                    (F[dir](i))[l] = min(0.0, (F[dir](i))[l]);
-                }
-                (F[dir](i))[l] = 0.0;
-            }
-        }
-    }
+
 }
 
 void HydroGrid::flux_cf_adjust_send(int dir) {

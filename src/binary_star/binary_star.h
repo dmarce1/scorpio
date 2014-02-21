@@ -24,9 +24,13 @@ public:
     static void compute_omega_dot(Real);
     static Real compute_I();
     static Real compute_Idot();
+    static _3Vec compute_Mdot(_3Vec* com);
+    static void adjust_frame(Real dt);
     static void apply_omega_dot(Real,Real,Real);
+    static void apply_Mdot(_3Vec);
     static binary_parameters_t bparam;
     static bool bparam_init;
+    virtual void physical_boundary(int);
 private:
     static void step(Real dt);
     static Real dtheta;
@@ -53,7 +57,7 @@ private:
     static void find_phi_min(Real* phi1, Real* phi2);
     static Real find_K(int frac, Real phi0, Real center, Real l1_x, Real* span);
     static void next_rho(Real, Real, Real, Real, Real, Real, Real);
-    static void find_mass(int, Real*, Real*);
+    static void find_mass(int, Real*, _3Vec*);
     static void read_silo(const char*);
     void add_data_point(double x, double y, double z, double h, const State&, double);
     virtual void compute_flow_off();

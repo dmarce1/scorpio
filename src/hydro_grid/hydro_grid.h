@@ -55,7 +55,7 @@ private:
 	static void mpi_datatypes_initialize();
 	virtual void initialize() = 0;
 	virtual HydroGrid* new_octnode() const = 0;
-	virtual void physical_boundary(int);
+    virtual void physical_boundary(int);
 	void inject_from_children_send(int);
 	void inject_from_children_recv(int);
 	void inject_from_children_send_wait(int);

@@ -27,13 +27,12 @@ public:
     static const int tau_index = 6;
     static const int pot_index = 7;
     static const int frac_index = STATE_NF - NFRAC;
-    static _3Vec drift_vel;
     static Real omega;
     static Real omega0;
     static Real omega_dot;
+    static _3Vec com_correction;
 public:
     static void set_gamma(Real g);
-    static void set_drift_vel(const _3Vec& v);
     static Real get_omega();
     void set_frac(int f, Real a);
     Real frac(int i) const;
@@ -74,7 +73,7 @@ public:
     void set_sy(Real);
     void set_sz(Real);
     void set_et(Real);
-    Real lz();
+    Real lz() const;
     Real set_lz_from_cartesian(const _3Vec& X);
     void reflect_on_z();
     void enforce_dual_energy_formalism(const _3Vec& X, const State& n1, const State& n2, const State& n3, const State& n4, const State& n5, const State& n6);
