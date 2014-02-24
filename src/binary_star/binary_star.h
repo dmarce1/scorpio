@@ -100,7 +100,7 @@ public:
         sinx = x[1] / R;
         switch (l) {
         case 0:
-            return U.rho();
+            return U[State::d_index];
         case 1:
             return U.frac(1);
         case 2:
