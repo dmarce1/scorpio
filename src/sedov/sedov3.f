@@ -6,6 +6,7 @@
       implicit none
 
 
+
 c..this routine produces 1d solutions for a sedov blast wave propagating
 c..through a density gradient rho = rho**(-omega)
 c..in planar, cylindrical or spherical geometry 

@@ -19,7 +19,7 @@
 #define DRIVING             0.01
 #define GCON 1.0
 #define DIAGNOSTIC_FREQ 1
-#define DONOR_FILL 0.99
+#define DONOR_FILL 0.999
 #define INX                 12
 #define GRID_DIM            (1.0)
 #define MINMOD_THETA        1.3
@@ -32,7 +32,7 @@
 #define OUTPUT_TIME_FREQ   	(1.0/30.0)
 #define MAXDTINC            (1.25)
 #define GRID_CFL_FACTOR     (0.8/3.0)
-#define MAXINITDT           (1.0e-3)
+#define MAXINITDT           (1.0e-1)
 #define ZTWD
 //#define NGRID_LIMIT         1000
 

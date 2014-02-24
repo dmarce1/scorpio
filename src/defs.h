@@ -17,7 +17,7 @@
 
 
 #ifdef BINARY_STAR
-//#define USE_FMM
+#define USE_FMM
 #define HYDRO_GRAV_GRID
 #define NFRAC 2
 #include "./binary_star/defs.h"
@@ -27,7 +27,7 @@ typedef BinaryStar ProblemGrid;
 
 
 #ifdef SINGLE_STAR
-//#define USE_FMM
+#define USE_FMM
 #define NFRAC 2
 #define HYDRO_GRAV_GRID
 //#define USE_FMM

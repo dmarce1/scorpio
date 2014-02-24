@@ -28,8 +28,8 @@ HydroGrid::ifunc_t HydroGrid::es[GRID_ES_SIZE] = { &HydroGrid::inject_from_child
 HydroGrid::ifunc_t HydroGrid::cs[GRID_CS_SIZE] = { &HydroGrid::flux_bnd_comm, &HydroGrid::physical_boundary, &HydroGrid::flux_bnd_recv_wait,
         &HydroGrid::flux_bnd_send_wait, &HydroGrid::amr_bnd_send, &HydroGrid::amr_bnd_send_wait, &HydroGrid::flux_compute, &HydroGrid::flux_cf_adjust_recv,
         &HydroGrid::flux_cf_adjust_recv_wait, &HydroGrid::flux_cf_adjust_send, &HydroGrid::flux_cf_adjust_send_wait, &HydroGrid::sync, &HydroGrid::compute_dudt,
-        &HydroGrid::compute_update, &HydroGrid::inject_from_children_recv, &HydroGrid::inject_from_children_recv_wait,
-        &HydroGrid::inject_from_children_send, &HydroGrid::inject_from_children_send_wait };
+        &HydroGrid::compute_update, &HydroGrid::inject_from_children_recv, &HydroGrid::inject_from_children_recv_wait, &HydroGrid::inject_from_children_send,
+        &HydroGrid::inject_from_children_send_wait };
 
 HydroGrid::ifunc_t HydroGrid::cs_children[4] = { &HydroGrid::inject_from_children_recv, &HydroGrid::inject_from_children_recv_wait,
         &HydroGrid::inject_from_children_send, &HydroGrid::inject_from_children_send_wait };
@@ -210,9 +210,9 @@ void HydroGrid::setup_grid_structure(bool one_iter) {
     OctNode::initialize_grids();
     dt = max_dt_driver();
     dt *= min(1.0, MAXINITDT);
-    for (int l = 0; l < OctNode::get_max_level_allowed()+2; l++) {
+    for (int l = 0; l < OctNode::get_max_level_allowed() + 2; l++) {
         step(dt);
-      //  printf( "%e\n", dt );
+        //  printf( "%e\n", dt );
         HydroGrid::set_time(0.0);
         if (check_for_refine()) {
             redistribute_grids();
@@ -260,6 +260,7 @@ void HydroGrid::substep_driver() {
     for (int i = 0; i < STATE_NF; i++) {
         DFO[i] = tmp2[i];
     }
+    DFO[State::et_index] += State::omega * DFO[State::lz_index] + DFO[State::pot_index];
     FO = (FO + DFO * _dt) * _beta + FO0 * (1.0 - _beta);
 
 }

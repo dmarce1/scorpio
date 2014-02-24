@@ -28,7 +28,7 @@ bool State::smooth_variable(int i) {
 }
 
 Real State::rot_pot(const _3Vec& X) const {
-    return rho() * rot_phi(X);
+    return (*this)[d_index] * rot_phi(X);
 }
 Real State::rot_phi(const _3Vec& X) const {
     const Real R2 = X[0] * X[0] + X[1] * X[1];
@@ -78,7 +78,7 @@ Real State::phi_eff() const {
 }
 
 Real State::phi(const _3Vec& x) const {
-    return (pot() - rot_pot(x)) / rho();
+    return (pot() / rho() - rot_pot(x) / (*this)[d_index]);
 }
 
 Real State::tau() const {
@@ -158,7 +158,11 @@ Vector<Real, STATE_NF> State::source(const _3Vec& X, Real t) const {
     s[sy_index] += rho() * com_correction[1];
     s[sz_index] += rho() * com_correction[2];
     s[lz_index] += rho() * (X[0] * com_correction[1] - X[1] * com_correction[0]);
+#ifdef USE_FMM
+ //  s[et_index] += -lz() * omega_dot;
+#else
     s[et_index] += -(lz() - rho() * omega * (X[0] * X[0] + X[1] * X[1])) * omega_dot;
+#endif
 #ifdef DRIVING
     const Real period = 2.0 * M_PI / omega;
     if (t < DRIVING_TIME * period) {
@@ -169,8 +173,7 @@ Vector<Real, STATE_NF> State::source(const _3Vec& X, Real t) const {
 }
 
 const char* State::field_name(int i) {
-    assert(i >= 0);
-    assert(i < STATE_NF);
+    assert(i >= 0); assert(i < STATE_NF);
     switch (i) {
     case State::d_index:
         return "d";
@@ -229,7 +232,7 @@ void State::floor(const _3Vec& X) {
     (*this)[sy_index] = rho() * v_y;
     Real rho1, rho2;
     Real de = pot();
-    //  (*this)[d_index] = max((*this)[d_index], rho_floor);
+   // (*this)[d_index] = max((*this)[d_index], rho_floor);
     (*this)[tau_index] = max(pow(ei_floor, 1.0 / gamma), (*this)[tau_index]);
     if (NFRAC > 1) {
         Real tot;

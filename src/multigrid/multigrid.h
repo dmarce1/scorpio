@@ -11,6 +11,8 @@
 #define COMPUTE_STAGE_MAX 43
 #define MG_ES_STAGE_MAX 6
 
+#define LMAX 4
+
 
 
 class MultiGrid: virtual public OctNode, public VirtualProcess<MultiGrid> {
@@ -27,6 +29,18 @@ private:
 	static MPI_Datatype MPI_recv_bnd3_t[6];
 	static MPI_Datatype MPI_comm_child_t[8];
 	static MPI_Datatype MPI_recv_amr_child_t[8];
+    static Real com[4];
+    static Real** i_poles;
+    static Real** r_poles;
+    static Real compute_phi(Real, Real, Real);
+    static void pole_init();
+    static void poles_clear();
+    static void poles_reduce();
+    void poles_compute();
+    void compute_local_physical_boundaries();
+    void accumulate_com();
+    static void compute_com();
+
 	Array3d<Real, PNX, PNX, PNX> phi0;
 	int cx, ax;
 	Real dx;
@@ -90,6 +104,9 @@ private:
 	void restart_compute();
 	virtual void create_child(const ChildIndex& c);
 protected:
+    static void compute_physical_boundaries();
+    static _3Vec get_center_of_mass();
+
 	Real st0;
 	void null(int);
 	int amr_cnt;
@@ -152,6 +169,13 @@ protected:
 	Real get_source(int i, int j, int k) const;
 	bool poisson_zone_is_refined(int, int, int) const;
 public:
+    static Real source_sum() {
+        return r_poles[0][0];
+    }
+    static void run();
+    MultiGrid();
+    virtual ~MultiGrid();
+
 	void mult_dx(Real d) {
 		if (get_level() == 0) {
 			h0 *= d;
@@ -174,9 +198,7 @@ public:
 	void set_source(int i, int j, int k, Real s);
 	Real get_phi(int i, int j, int k) const;
 	Real* get_phi_ptr(int i, int j, int k);
-	virtual ~MultiGrid();
 	virtual void init();
-	MultiGrid();
 };
 
 #endif /* GRIDPOISSON_H_ */

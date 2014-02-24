@@ -14,8 +14,8 @@ void HydroGravGrid::solve_poisson() {
     Real start_time = MPI_Wtime();
     set_gravity_source();
     compute_physical_boundaries();
-    set_poisson_tolerance(Poisson::source_sum() / 1.0e+10);
-//	printf("%e\n", Poisson::source_sum() / 1.0e+9);
+    set_poisson_tolerance(MultiGrid::source_sum() / 1.0e+10);
+//	printf("%e\n", MultiGrid::source_sum() / 1.0e+9);
     poisson_boundary_time += MPI_Wtime() - start_time;
     start_time = MPI_Wtime();
     iters = 0;
@@ -102,11 +102,11 @@ void HydroGravGrid::from_conserved_energy() {
 
 void HydroGravGrid::pot_to_hydro_grid() {
     const int o = BW - 1;
-    Poisson* p;
+    MultiGrid* p;
     HydroGrid* g;
     Real pot;
     for (int n = 0; n < get_local_node_cnt(); n++) {
-        p = dynamic_cast<Poisson*>(get_local_node(n));
+        p = dynamic_cast<MultiGrid*>(get_local_node(n));
         g = dynamic_cast<HydroGrid*>(get_local_node(n));
         for (int k = BW - 1; k < GNX - BW + 1; k++) {
             for (int j = BW - 1; j < GNX - BW + 1; j++) {
@@ -123,11 +123,11 @@ void HydroGravGrid::pot_to_hydro_grid() {
 
 void HydroGravGrid::pot_from_hydro_grid() {
     const int o = BW - 1;
-    Poisson* p;
+    MultiGrid* p;
     HydroGrid* g;
     Real phi;
     for (int n = 0; n < get_local_node_cnt(); n++) {
-        p = dynamic_cast<Poisson*>(get_local_node(n));
+        p = dynamic_cast<MultiGrid*>(get_local_node(n));
         g = dynamic_cast<HydroGrid*>(get_local_node(n));
         for (int k = BW; k < GNX - BW; k++) {
             for (int j = BW; j < GNX - BW; j++) {
@@ -204,10 +204,10 @@ void HydroGravGrid::run(int argc, char* argv[]) {
 
 void HydroGravGrid::set_gravity_source() {
     const int o = BW - 1;
-    Poisson* p;
+    MultiGrid* p;
     HydroGrid* g;
     for (int n = 0; n < get_local_node_cnt(); n++) {
-        p = dynamic_cast<Poisson*>(get_local_node(n));
+        p = dynamic_cast<MultiGrid*>(get_local_node(n));
         g = dynamic_cast<HydroGrid*>(get_local_node(n));
         for (int k = BW; k < GNX - BW; k++) {
             for (int j = BW; j < GNX - BW; j++) {

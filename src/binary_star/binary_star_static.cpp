@@ -1,11 +1,11 @@
 #include "binary_star.h"
-#include "../hydro_FMM_grid/hydro_FMM_grid.h"
+#include "../FMM/FMM.h"
 #include <list>
 
 #ifdef HYDRO_GRAV_GRID
 #ifdef BINARY_STAR
 
-#define CHECKPT_FREQ 100
+#define CHECKPT_FREQ 10
 
 //static Real MA = 1.04;
 //static Real MD = 0.20;
@@ -135,11 +135,30 @@ void BinaryStar::compute_axis(Real dt, Real* theta, Real* theta_dot) {
     }
     *theta = asin(e[ei][1]);
     *theta_dot = (asin(e[ei][1]) - asin(e0[ei][1])) / dt;
+    Real w = 10.0 * State::omega;
+    State::omega_dot = w * (w * *theta + 2.0 * *theta_dot);
+    //  State::omega_dot = 0.0;
+    Real omega0 = State::omega;
+    Real omega1 = omega0 + dt * State::omega_dot;
     if (MPI_rank() == 0) {
         FILE* fp = fopen("eigen.dat", "at");
         fprintf(fp, "%.6e %.12e %.12e %.12e %.12e   \n", dynamic_cast<BinaryStar*>(get_root())->get_time(), State::omega, State::omega_dot, *theta, *theta_dot);
         fclose(fp);
     }
+    for (int l = 0; l < get_local_node_cnt(); l++) {
+        g = dynamic_cast<BinaryStar*>(get_local_node(l));
+        for (int k = 0; k < GNX; k++) {
+            for (int j = 0; j < GNX; j++) {
+                for (int i = 0; i < GNX; i++) {
+                    _3Vec x = g->X(i, j, k);
+                    Real r2 = x[0] * x[0] + x[1] * x[1];
+                    State u = g->U(i, j, k);
+                    g->U(i, j, k)[State::et_index] -= ((omega1 - omega0) * u.lz() - 0.5 * u[State::d_index] * r2 * ((omega1 * omega1) - (omega0 * omega0)));
+                }
+            }
+        }
+    }
+    State::omega = omega1;
 
 }
 
@@ -148,10 +167,7 @@ void BinaryStar::adjust_frame(Real dt) {
     Real w;
     Real theta, theta_dot;
     com_dot = compute_Mdot(&com);
-    compute_axis(dt, &theta, &theta_dot);
     w = 10.0 * State::omega;
-    State::omega_dot = -w * (w * theta + 2.0 * theta_dot);
-
     com_dot = compute_Mdot(&com);
     Real x, y, z, xdot, ydot, zdot, r, a, tmp;
     x = com[0];
@@ -165,12 +181,14 @@ void BinaryStar::adjust_frame(Real dt) {
     State::com_correction[0] = -w * (w * r + 2.0 * tmp) * (x / r);
     State::com_correction[1] = -w * (w * r + 2.0 * tmp) * (y / r);
     State::com_correction[2] = -w * (w * r + 2.0 * tmp) * (z / r);
+    // State::com_correction[0] = 0.0;
+    // State::com_correction[1] = 0.0;
+    //State::com_correction[2] = 0.0;
 
     if (MPI_rank() == 0) {
         FILE* fp = fopen("adjust.dat", "at");
-        fprintf(fp, "%e %e %e %e %e %e %e %e %e %e %e %e %e %e\n", dynamic_cast<BinaryStar*>(get_root())->get_time(), theta, theta_dot, State::omega,
-                State::omega_dot, com[0], com[1], com[2], com_dot[0], com_dot[1], com_dot[2], State::com_correction[0], State::com_correction[1],
-                State::com_correction[2]);
+        fprintf(fp, "%e %e %e %e %e %e %e %e %e %e \n", dynamic_cast<BinaryStar*>(get_root())->get_time(), com[0], com[1], com[2], com_dot[0], com_dot[1],
+                com_dot[2], State::com_correction[0], State::com_correction[1], State::com_correction[2]);
         fclose(fp);
     }
 
@@ -203,31 +221,6 @@ Real BinaryStar::compute_I() {
     return I;
 }
 
-Real BinaryStar::compute_Idot() {
-    BinaryStar* g;
-    Real Idot, tmp;
-    Idot = 0.0;
-    for (int l = 0; l < get_local_node_cnt(); l++) {
-        g = dynamic_cast<BinaryStar*>(get_local_node(l));
-        Real dv = pow(g->get_dx(), 3);
-        for (int k = BW; k < GNX - BW; k++) {
-            for (int j = BW; j < GNX - BW; j++) {
-                for (int i = BW; i < GNX - BW; i++) {
-                    if (g->zone_is_refined(i, j, k)) {
-                        continue;
-                    }
-                    _3Vec x = g->X(i, j, k);
-                    Real R2 = x[0] * x[0] + x[1] * x[1];
-                    Idot += R2 * State::omega * g->D(i, j, k)[State::d_index] * dv;
-                }
-            }
-        }
-    }
-    tmp = Idot;
-    MPI_Allreduce(&tmp, &Idot, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD );
-    return Idot;
-}
-
 _3Vec BinaryStar::compute_Mdot(_3Vec *com) {
     BinaryStar* g;
     _3Vec Mdot;
@@ -246,9 +239,9 @@ _3Vec BinaryStar::compute_Mdot(_3Vec *com) {
                         continue;
                     }
                     _3Vec x = g->X(i, j, k);
-                    Mdot += x * (g->U(i, j, k)[State::d_index] - g->U0(i, j, k)[State::d_index]) * dv;
+                    Mdot += x * (g->U(i, j, k).rho() - g->U0(i, j, k).rho()) * dv;
                     M += g->U(i, j, k).rho() * dv;
-                    *com += x * g->U(i, j, k)[State::d_index] * dv;
+                    *com += x * g->U(i, j, k).rho() * dv;
                 }
             }
         }
@@ -712,6 +705,7 @@ void BinaryStar::scf_run(int argc, char* argv[]) {
                         new_rho = max(new_rho, State::rho_floor);
                         (*g0)(i, j, k)[State::d_index] *= 1.0 - w;
                         (*g0)(i, j, k)[State::d_index] += w * new_rho;
+                        (*g0)(i, j, k)[State::d_index] = (*g0)(i, j, k).rho();
                         if (g0->HydroGrid::xc(i) > xm_d) {
                             (*g0)(i, j, k).set_frac(1, max((*g0)(i, j, k).rho(), State::rho_floor * 0.5));
                             (*g0)(i, j, k).set_frac(0, State::rho_floor * 0.5);
@@ -808,7 +802,11 @@ void BinaryStar::scf_run(int argc, char* argv[]) {
                     sy = +(*g0)(i, j, k).rho() * omega * g0->HydroGrid::xc(i);
                     lz = (*g0)(i, j, k).rho() * R2 * omega;
                     if ((*g0)(i, j, k).rho() < 10.0 * State::rho_floor) {
+#ifdef USE_FMM
+                        ei = -g0->get_phi(i, j, k) / 100.0;
+#else
                         ei = -g0->get_phi(i - BW + 1, j - BW + 1, k - BW + 1) / 100.0;
+#endif
                     } else {
                         ei = State::ei_floor;
                     }
@@ -961,7 +959,7 @@ void BinaryStar::analyze() {
                     if (!g->zone_is_refined(i, j, k)) {
                         U = (*g)(i, j, k);
                         X = g->X(i, j, k);
-                        tmp1 += U.sy() * dv;
+                        tmp1 += U.lz() * dv;
                         tmp2 += U.rho() * (X[0] * X[0] + X[1] * X[1]) * dv;
                     }
                 }
@@ -985,6 +983,7 @@ void BinaryStar::analyze() {
             }
         }
     }
+    printf("OMega = %e\n", State::omega);
     boundary_driver();
     for (int m = 0; m < get_local_node_cnt(); m++) {
         g = dynamic_cast<BinaryStar*>(get_local_node(m));
@@ -1000,12 +999,46 @@ void BinaryStar::analyze() {
         }
     }
 
-    Real dphi_dx_p, dphi_dx_m, dphi_dy_p, dphi_dy_m, d2phi_dx2, d2phi_dy2;
-    Vector<Real, 4> minima[256];
-    Vector<Real, 4> saddles[256];
-    int n_min, n_sad;
-    n_min = n_sad = 0;
+    Real rho_max_a = 0.0;
+    _3Vec rho_max_a_loc;
+    Real rho_max_d = 0.0;
+    _3Vec rho_max_d_loc;
     int i0, j0, k0;
+    for (int m = 0; m < get_local_node_cnt(); m++) {
+        g = dynamic_cast<BinaryStar*>(get_local_node(m));
+        dv = pow(g->get_dx(), 3);
+        for (int k = BW; k < GNX - BW; k++) {
+            if (g->HydroGrid::zc(k) < 0.0 || g->HydroGrid::zc(k) > g->get_dx()) {
+                continue;
+            }
+            for (int j = BW; j < GNX - BW; j++) {
+                if (g->HydroGrid::yc(j) < 0.0 || g->HydroGrid::yc(j) > g->get_dx()) {
+                    continue;
+                }
+                for (int i = BW; i < GNX - BW; i++) {
+                    if (!g->zone_is_refined(i, j, k)) {
+                        U = (*g)(i, j, k);
+                        X = g->X(i, j, k);
+                        if (U.frac(0) > U.frac(1)) {
+                            if (U.rho() > rho_max_a) {
+                                rho_max_a_loc = X;
+                                rho_max_a = U.rho();
+                            }
+                        } else {
+                            if (U.rho() > rho_max_d) {
+                                rho_max_d_loc = X;
+                                rho_max_d = U.rho();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    printf("rho_acc = %e at %e %e %e\n", rho_max_a, rho_max_a_loc[0], rho_max_a_loc[1], rho_max_a_loc[2]);
+    printf("rho_don = %e at %e %e %e\n", rho_max_d, rho_max_d_loc[0], rho_max_d_loc[1], rho_max_d_loc[2]);
+    Real l1phi = -1.0e+99;
+    _3Vec l1;
     for (int m = 0; m < get_local_node_cnt(); m++) {
         g = dynamic_cast<BinaryStar*>(get_local_node(m));
         dv = pow(g->get_dx(), 3);
@@ -1015,118 +1048,272 @@ void BinaryStar::analyze() {
             }
             k0 = k + 1 - BW;
             for (int j = BW; j < GNX - BW; j++) {
+                if (g->HydroGrid::yc(j) < 0.0 || g->HydroGrid::yc(j) > g->get_dx()) {
+                    continue;
+                }
                 j0 = j + 1 - BW;
                 for (int i = BW; i < GNX - BW; i++) {
+                    if (g->HydroGrid::xc(i) < rho_max_a_loc[0] || g->HydroGrid::xc(i) > rho_max_d_loc[0]) {
+                        continue;
+                    }
                     i0 = i + 1 - BW;
                     if (!g->zone_is_refined(i, j, k)) {
                         U = (*g)(i, j, k);
                         X = g->X(i, j, k);
-                        dphi_dx_p = g->phi(i0 + 1, j0, k0) - g->phi(i0, j0, k0);
-                        dphi_dx_m = g->phi(i0, j0, k0) - g->phi(i0 - 1, j0, k0);
-                        dphi_dy_p = g->phi(i0, j0 + 1, k0) - g->phi(i0, j0, k0);
-                        dphi_dy_m = g->phi(i0, j0, k0) - g->phi(i0, j0 - 1, k0);
-                        if (dphi_dx_p * dphi_dx_m < 0.0 && dphi_dy_p * dphi_dy_m < 0.0) {
-                            Vector<Real, 4> v;
-                            d2phi_dx2 = dphi_dx_p - dphi_dx_m;
-                            d2phi_dy2 = dphi_dy_p - dphi_dy_m;
-                            v[0] = X[0] - 0.5 * g->get_dx() * (dphi_dx_p + dphi_dx_m) / d2phi_dx2;
-                            v[1] = X[1] - 0.5 * g->get_dx() * (dphi_dy_p + dphi_dy_m) / d2phi_dy2;
-                            v[2] = X[2];
-                            v[3] = g->phi(i0, j0, k0);
-                            if (d2phi_dx2 * d2phi_dy2 < 0.0) {
-                                saddles[n_sad] = v;
-                                n_sad++;
-                            } else if (d2phi_dx2 > 0.0 && d2phi_dy2 > 0.0) {
-                                minima[n_min] = v;
-                                n_min++;
-                            }
+                        Real phi0 = g->phi(i0, j0, k0);
+                        if (phi0 > l1phi) {
+                            l1phi = phi0;
+                            l1 = X;
                         }
                     }
                 }
             }
         }
     }
-
-    if (n_sad == 3 && n_min == 2) {
-        Vector<Real, 4> l1;
-        _3Vec a, b;
-        for (int i = 0; i < n_sad; i++) {
-            for (int j = 0; j < 3; j++) {
-                a[j] = saddles[i][j] - minima[0][j];
-                b[j] = saddles[i][j] - minima[1][j];
-            }
-            if (a.dot(b) < 0.0) {
-                l1 = saddles[i];
-            }
-            printf("%e %e %e %e\n", saddles[i][0], saddles[i][1], saddles[i][2], saddles[i][3]);
-        }
-        Real M1, M2, Mc, dm;
-        M1 = M2 = Mc = 0.0;
-        _3Vec M1x;
-        int index;
-        if (minima[0][3] < minima[1][3]) {
-            index = 0;
-        } else {
-            index = 1;
-        }
-        for (int j = 0; j < 3; j++) {
-            M1x[j] = minima[index][j];
-        }
-        for (int m = 0; m < get_local_node_cnt(); m++) {
-            g = dynamic_cast<BinaryStar*>(get_local_node(m));
-            dv = pow(g->get_dx(), 3);
-            for (int k = BW; k < GNX - BW; k++) {
-                for (int j = BW; j < GNX - BW; j++) {
-                    for (int i = BW; i < GNX - BW; i++) {
-                        if (!g->zone_is_refined(i, j, k)) {
-                            dm = dv * (*g)(i, j, k).rho();
-                            if (g->phi(i + 1 - BW, j + 1 - BW, k + 1 - BW) > l1[3]) {
-                                Mc += dm;
+    printf("l1 is %e at %e %e %e\n", l1phi, l1[0], l1[1], l1[2]);
+    Real Mc, M1, M2;
+    _3Vec a, b;
+    Mc = M1 = M2 = 0.0;
+    _3Vec com_a, com_d;
+    com_a = 0.0;
+    com_d = 0.0;
+    Real J1, J2;
+    for (int m = 0; m < get_local_node_cnt(); m++) {
+        Real dm;
+        g = dynamic_cast<BinaryStar*>(get_local_node(m));
+        dv = pow(g->get_dx(), 3);
+        for (int k = BW; k < GNX - BW; k++) {
+            for (int j = BW; j < GNX - BW; j++) {
+                for (int i = BW; i < GNX - BW; i++) {
+                    if (!g->zone_is_refined(i, j, k)) {
+                        dm = dv * (*g)(i, j, k).rho();
+                        if (g->phi(i + 1 - BW, j + 1 - BW, k + 1 - BW) > l1phi) {
+                            Mc += dm;
+                        } else {
+                            a = l1 - rho_max_a_loc;
+                            b = g->X(i, j, k) - l1;
+                            if (a.dot(b) < 0.0) {
+                                M1 += dm;
+                                com_a += g->X(i, j, k) * dm;
                             } else {
-                                for (int l = 0; l < 3; l++) {
-                                    a[l] = l1[l] - M1x[l];
-                                    b[l] = g->X(i, j, k)[l] - l1[l];
-                                }
-                                if (a.dot(b) < 0.0) {
-                                    M1 += dm;
-                                } else {
-                                    M2 += dm;
-                                }
+                                M2 += dm;
+                                com_d += g->X(i, j, k) * dm;
                             }
                         }
                     }
                 }
             }
         }
-
-        FILE* fp = fopen("silo.dat", "at");
-        fprintf(fp, "%e %e %e %e %e %e %e %e\n", dynamic_cast<const BinaryStar*>(get_root())->get_time(), State::get_omega(), l1[3], l1[0], l1[1], M1, M2, Mc);
-        fclose(fp);
     }
+    com_a /= M1;
+    com_d /= M2;
+    a = com_a - com_d;
+    Real sep = sqrt(a.dot(a));
+    J1 = J2 = 0.0;
+    Real Jorb = 0.0;
+    for (int m = 0; m < get_local_node_cnt(); m++) {
+        Real dm;
+        g = dynamic_cast<BinaryStar*>(get_local_node(m));
+        dv = pow(g->get_dx(), 3);
+        for (int k = BW; k < GNX - BW; k++) {
+            for (int j = BW; j < GNX - BW; j++) {
+                for (int i = BW; i < GNX - BW; i++) {
+                    if (!g->zone_is_refined(i, j, k)) {
+                        dm = dv * (*g)(i, j, k).rho();
+                        if (g->phi(i + 1 - BW, j + 1 - BW, k + 1 - BW) > l1phi) {
+                        } else {
+                            a = l1 - rho_max_a_loc;
+                            b = g->X(i, j, k) - l1;
+                            State U = g->U(i, j, k);
+                            _3Vec x = g->X(i, j, k);
+                            Jorb += (x[0] * U.sy() - x[1] * U.sx()) * dv;
+                            if (a.dot(b) < 0.0) {
+                                x -= rho_max_a_loc;
+                                J1 += (x[0] * U.sy() - x[1] * U.sx()) * dv;
+                            } else {
+                                x -= rho_max_d_loc;
+                                J2 += (x[0] * U.sy() - x[1] * U.sx()) * dv;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Jorb -= J1 + J2;
+    FILE* fp = fopen("silo.dat", "at");
+    fprintf(fp, "%e %e %e %e %e %e %e %e %e %e %e %e\n", dynamic_cast<const BinaryStar*>(get_root())->get_time(), State::get_omega(), l1[3], l1[0], l1[1], M1,
+            M2, Mc, sep, J1, J2, Jorb);
+    fclose(fp);
+
+    /*Real dphi_dx_p, dphi_dx_m, dphi_dy_p, dphi_dy_m, d2phi_dx2, d2phi_dy2;
+     Vector<Real, 4> minima[256];
+     Vector<Real, 4> saddles[256];
+     int n_min, n_sad;
+     n_min = n_sad = 0;
+     for (int m = 0; m < get_local_node_cnt(); m++) {
+     g = dynamic_cast<BinaryStar*>(get_local_node(m));
+     dv = pow(g->get_dx(), 3);
+     for (int k = BW; k < GNX - BW; k++) {
+     if (g->HydroGrid::zc(k) < 0.0 || g->HydroGrid::zc(k) > g->get_dx()) {
+     continue;
+     }
+     k0 = k + 1 - BW;
+     for (int j = BW; j < GNX - BW; j++) {
+     if (g->HydroGrid::yc(j) < 0.0 || g->HydroGrid::yc(j) > g->get_dx()) {
+     continue;
+     }
+     j0 = j + 1 - BW;
+     for (int i = BW; i < GNX - BW; i++) {
+     i0 = i + 1 - BW;
+     if (!g->zone_is_refined(i, j, k)) {
+     U = (*g)(i, j, k);
+     X = g->X(i, j, k);
+     dphi_dx_p = g->phi(i0 + 1, j0, k0) - g->phi(i0, j0, k0);
+     dphi_dx_m = g->phi(i0, j0, k0) - g->phi(i0 - 1, j0, k0);
+     dphi_dy_p = g->phi(i0, j0 + 1, k0) - g->phi(i0, j0, k0);
+     dphi_dy_m = g->phi(i0, j0, k0) - g->phi(i0, j0 - 1, k0);
+     if (dphi_dx_p * dphi_dx_m < 0.0) {
+     Vector<Real, 4> v;
+     d2phi_dx2 = dphi_dx_p - dphi_dx_m;
+     d2phi_dy2 = dphi_dy_p - dphi_dy_m;
+     v[0] = X[0] - 0.5 * g->get_dx() * (dphi_dx_p + dphi_dx_m) / d2phi_dx2;
+     v[1] = X[1] - 0.5 * g->get_dx() * (dphi_dy_p + dphi_dy_m) / d2phi_dy2;
+     v[2] = X[2];
+     v[3] = g->phi(i0, j0, k0);
+     if (d2phi_dx2 < 0.0) {
+     saddles[n_sad] = v;
+     printf("sad %e %e %e %e\n", saddles[n_sad][0], saddles[n_sad][1], saddles[n_sad][2], saddles[n_sad][3]);
+     n_sad++;
+     } else if (d2phi_dy2 > 0.0) {
+     minima[n_min] = v;
+     printf("min %e %e %e %e\n", minima[n_min][0], minima[n_min][1], minima[n_min][2], minima[n_min][3]);
+     n_min++;
+     }
+     }
+     }
+     }
+     }
+     }
+     }
+
+     if (n_sad == 3 && n_min == 2) {
+     Vector<Real, 4> l1;
+     _3Vec a, b;
+     for (int i = 0; i < n_sad; i++) {
+     for (int j = 0; j < 3; j++) {
+     a[j] = saddles[i][j] - minima[0][j];
+     b[j] = saddles[i][j] - minima[1][j];
+     }
+     if (a.dot(b) < 0.0) {
+     l1 = saddles[i];
+     }
+     printf("%e %e %e %e\n", saddles[i][0], saddles[i][1], saddles[i][2], saddles[i][3]);
+     }
+     Real M1, M2, Mc, dm;
+     M1 = M2 = Mc = 0.0;
+     _3Vec M1x;
+     int index;
+     if (minima[0][3] < minima[1][3]) {
+     index = 0;
+     } else {
+     index = 1;
+     }
+     for (int j = 0; j < 3; j++) {
+     M1x[j] = minima[index][j];
+     }
+     for (int m = 0; m < get_local_node_cnt(); m++) {
+     g = dynamic_cast<BinaryStar*>(get_local_node(m));
+     dv = pow(g->get_dx(), 3);
+     for (int k = BW; k < GNX - BW; k++) {
+     for (int j = BW; j < GNX - BW; j++) {
+     for (int i = BW; i < GNX - BW; i++) {
+     if (!g->zone_is_refined(i, j, k)) {
+     dm = dv * (*g)(i, j, k).rho();
+     if (g->phi(i + 1 - BW, j + 1 - BW, k + 1 - BW) > l1[3]) {
+     Mc += dm;
+     } else {
+     for (int l = 0; l < 3; l++) {
+     a[l] = l1[l] - M1x[l];
+     b[l] = g->X(i, j, k)[l] - l1[l];
+     }
+     if (a.dot(b) < 0.0) {
+     M1 += dm;
+     } else {
+     M2 += dm;
+     }
+     }
+     }
+     }
+     }
+     }
+     }
+
+     FILE* fp = fopen("silo.dat", "at");
+     fprintf(fp, "%e %e %e %e %e %e %e %e\n", dynamic_cast<const BinaryStar*>(get_root())->get_time(), State::get_omega(), l1[3], l1[0], l1[1], M1, M2, Mc);
+     fclose(fp);
+     } else {
+     printf("Bad Roch %i %i\n", n_sad, n_min);
+     }*/
 #endif
 }
 
+#define RK2
+
 void BinaryStar::step(Real dt) {
-    Real I, Idot;
+#ifdef USE_FMM
     Real start_time;
-    Real beta[3] = { 1.0, 0.25, 2.0 / 3.0 };
+#ifdef RK2
+    Real beta[2] = { 1.0, 1.0 / 2.0 };
+    const int nstep = 2;
+#else
+    Real beta[3] = {1.0, 0.25, 2.0 / 3.0};
+    const int nstep = 2;
+#endif
     HydroGrid::set_dt(dt);
-    Real omega, omega0, omega_dot, dtheta0;
-    dtheta0 = dtheta;
-    omega = omega0 = State::omega;
     store();
-    for (int i = 0; i < 3; i++) {
+    store_pot();
+    Real dtheta0 = dtheta;
+    Real omega0 = State::omega;
+    for (int i = 0; i < nstep; i++) {
+        adjust_frame(dt);
         HydroGrid::set_beta(beta[i]);
         start_time = MPI_Wtime();
         substep_driver();
-        hydro_time += MPI_Wtime() - start_time;
-        dtheta = (dtheta + dt * omega) * beta[i] + dtheta0 * (1.0 - beta[i]);
+        FMM_solve_dot();
+        update();
+        dtheta = (dtheta + dt * (State::omega - State::omega0)) * beta[i] + dtheta0 * (1.0 - beta[i]);
+        //  State::omega = (State::omega + dt * State::omega_dot) * beta[i] + omega0 * (1.0 - beta[i]);
+        FMM_solve();
+        account_pot();
+    }
+    Real theta, dethea;
+    compute_axis(dt, &theta, &dtheta);
+    FMM_from_children();
+    pot_to_hydro_grid();
+    set_time(get_time() + dt);
+
+#else
+    Real I, Idot;
+    Real start_time;
+    Real beta[3] = {1.0, 0.25, 2.0 / 3.0};
+    HydroGrid::set_dt(dt);
+    Real omega0, omega_dot, dtheta0;
+    dtheta0 = dtheta;
+    omega0 = State::omega;
+    store();
+    for (int i = 0; i < 3; i++) {
+        adjust_frame(dt);
+        HydroGrid::set_beta(beta[i]);
+        start_time = MPI_Wtime();
+        substep_driver();
+        dtheta = (dtheta + dt * State::omega) * beta[i] + dtheta0 * (1.0 - beta[i]);
         State::omega = (State::omega + dt * State::omega_dot) * beta[i] + omega0 * (1.0 - beta[i]);
         solve_poisson();
     }
     HydroGrid::set_time(HydroGrid::get_time() + dt);
-    adjust_frame(dt);
-//    HydroGrid::boundary_driver();
+    //    HydroGrid::boundary_driver();
+#endif
 }
 
 void BinaryStar::run(int argc, char* argv[]) {
@@ -1195,7 +1382,7 @@ void BinaryStar::run(int argc, char* argv[]) {
 #else
         solve_poisson();
 #endif
-        get_root()->output("./output/X", 0.0, GNX, BW);
+        get_root()->output("./output/X", 0.0, GNX, BW, dtheta);
         integrate_conserved_variables(&sum);
         lz_t0 = sum[State::lz_index];
     }
@@ -1216,7 +1403,7 @@ void BinaryStar::run(int argc, char* argv[]) {
             fprintf(fp, "\n");
             fclose(fp);
         }
-        Real ofreq = (OUTPUT_TIME_FREQ * (2.0 * M_PI) / State::get_omega());
+        Real ofreq = (OUTPUT_TIME_FREQ * (2.0 * M_PI) / State::omega0);
 //		Real ofreq = (OUTPUT_TIME_FREQ * (2.0 * M_PI) / State::get_omega());
 
         if (step_cnt % CHECKPT_FREQ == 0) {
@@ -1231,7 +1418,7 @@ void BinaryStar::run(int argc, char* argv[]) {
         //compute_omega_dot(dt);
         pot_to_hydro_grid();
         Real theta, theta_dot;
-        compute_axis(dt, &theta, &theta_dot);
+        //     compute_axis(dt, &theta, &theta_dot);
 #ifndef USE_FMM
         _3Vec com = get_center_of_mass();
 #else
@@ -1281,7 +1468,7 @@ void BinaryStar::run(int argc, char* argv[]) {
             if (MPI_rank() == 0) {
                 printf("*");
             }
-            get_root()->output("./output/X", nint(HydroGrid::get_time() / ofreq), GNX, BW);
+            get_root()->output("./output/X", nint(HydroGrid::get_time() / ofreq), GNX, BW, dtheta);
         }
         if (MPI_rank() == 0) {
             printf("\n");
@@ -1334,16 +1521,12 @@ void BinaryStar::diagnostics(Real dt) {
     Real dv;
     State u, dudt;
     _3Vec x;
-
-    Real tmp;
+    Real tmp1[6], tmp2[6];
+    Real sz = 0.0, sx = 0.0, sy = 0.0;
     Real lz = 0.0;
-    Real dlz_grav = 0.0;
-    Real dlz_hydro = 0.0;
-    Real dlz_source = 0.0;
-    Real dlz_flow_off = 0.0;
     Real da;
     Real etall = 0.0;
-    Real mtot;
+    Real mtot = 0.0;
     for (int m = 0; m < get_local_node_cnt(); m++) {
         b = dynamic_cast<BinaryStar*>(get_local_node(m));
         dv = pow(b->get_dx(), 3);
@@ -1356,62 +1539,42 @@ void BinaryStar::diagnostics(Real dt) {
                         dudt = b->get_dudt(i, j, k);
                         x = b->X(i, j, k);
                         etall += u.conserved_energy(x) * dv;
-                        //					etall += u.et() * dv;
-                        mtot += u.rho() * dv;
+                        mtot += u[State::d_index] * dv;
                         lz += u.lz() * dv;
+                        sx += u.sx() * dv;
+                        sy += u.sy() * dv;
+                        sz += u.sz() * dv;
                         const int l = State::lz_index;
-                        dlz_hydro += (b->get_flux(0, i + 1, j, k)[l] - b->get_flux(0, i, j, k)[l]) * da;
-                        dlz_hydro += (b->get_flux(1, i, j + 1, k)[l] - b->get_flux(1, i, j, k)[l]) * da;
-                        dlz_hydro += (b->get_flux(2, i, j, k + 1)[l] - b->get_flux(2, i, j, k)[l]) * da;
-#ifdef USE_FMM
-                        dlz_grav += b->g_lz(i, j, k) * u.rho() * dv;
-#else
-                        dlz_grav += b->glz(i, j, k) * u.rho() * dv;
-#endif
-                        if (b->is_phys_bound(XL) && i == BW) {
-                            dlz_flow_off -= (b->get_flux(0, i, j, k))[State::lz_index] * da;
-                        }
-                        if (b->is_phys_bound(XU) && i == GNX - BW - 1) {
-                            dlz_flow_off += (b->get_flux(0, i + 1, j, k))[State::lz_index] * da;
-                        }
-                        if (b->is_phys_bound(YL) && j == BW) {
-                            dlz_flow_off -= (b->get_flux(1, i, j, k))[State::lz_index] * da;
-                        }
-                        if (b->is_phys_bound(YU) && j == GNX - BW - 1) {
-                            dlz_flow_off += (b->get_flux(1, i, j + 1, k))[State::lz_index] * da;
-                        }
-                        if (b->is_phys_bound(ZL) && k == BW) {
-                            dlz_flow_off -= (b->get_flux(2, i, j, k))[State::lz_index] * da;
-                        }
-                        if (b->is_phys_bound(ZU) && k == GNX - BW - 1) {
-                            dlz_flow_off += (b->get_flux(2, i, j, k + 1))[State::lz_index] * da;
-                        }
                     }
                 }
             }
         }
     }
-    tmp = mtot;
-    MPI_Allreduce(&tmp, &mtot, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD );
-    tmp = etall;
-    MPI_Allreduce(&tmp, &etall, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD );
-    tmp = lz;
-    MPI_Allreduce(&tmp, &lz, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD );
-    tmp = dlz_flow_off;
-    MPI_Allreduce(&tmp, &dlz_flow_off, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD );
-    tmp = dlz_hydro;
-    MPI_Allreduce(&tmp, &dlz_hydro, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD );
-    tmp = dlz_grav;
-    MPI_Allreduce(&tmp, &dlz_grav, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD );
-    dlz_hydro -= dlz_flow_off;
-//	dlz_hydro -= dlz_grav;
+    tmp1[0] = sx;
+    tmp1[1] = sy;
+    tmp1[2] = sz;
+    tmp1[3] = mtot;
+    tmp1[4] = lz;
+    tmp1[5] = etall;
+    MPI_Reduce(tmp1, tmp2, 6, MPI_DOUBLE, MPI_SUM, get_root()->proc(), MPI_COMM_WORLD );
     if (MPI_rank() == get_root()->proc()) {
+        sx = tmp2[0];
+        sy = tmp2[1];
+        sz = tmp2[2];
+        mtot = tmp2[3];
+        lz = tmp2[4];
+        etall = tmp2[5];
+        etall += State::omega * lz;
         etall += dynamic_cast<const BinaryStar*>(get_root())->get_flow_off()[State::et_index];
-        etall += dynamic_cast<const BinaryStar*>(get_root())->get_flow_off()[State::pot_index];
-        lz += dynamic_cast<const BinaryStar*>(get_root())->get_flow_off()[State::sy_index];
+      //  etall += dynamic_cast<const BinaryStar*>(get_root())->get_flow_off()[State::pot_index];
+       // etall += State::omega * dynamic_cast<const BinaryStar*>(get_root())->get_flow_off()[State::lz_index];
+        lz += dynamic_cast<const BinaryStar*>(get_root())->get_flow_off()[State::lz_index];
+        sx += dynamic_cast<const BinaryStar*>(get_root())->get_flow_off()[State::sx_index];
+        sy += dynamic_cast<const BinaryStar*>(get_root())->get_flow_off()[State::sy_index];
+        sz += dynamic_cast<const BinaryStar*>(get_root())->get_flow_off()[State::sz_index];
         mtot += dynamic_cast<const BinaryStar*>(get_root())->get_flow_off()[State::d_index];
         FILE* fp = fopen("diag.dat", "at");
-        fprintf(fp, "%.12e %.18e %.18e %.18e \n", get_time(), lz, etall, mtot);
+        fprintf(fp, "%.9e %.15e %.15e %.15e %.15e %.15e %.15e \n", get_time(), lz, etall, mtot, sx, sy, sz);
         fclose(fp);
     }
 }

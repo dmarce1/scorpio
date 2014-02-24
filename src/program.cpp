@@ -6,7 +6,7 @@
 #include "sod/grid_sod.h"
 #include "blast_wave/grid_blast_wave.h"
 #include "binary_star/binary_star.h"
-#include "hydro_FMM_grid/hydro_FMM_grid.h"
+#include "FMM/FMM.h"
 
 int Program::run(int argc, char* argv[]) {
     if( argc > 1 ) {

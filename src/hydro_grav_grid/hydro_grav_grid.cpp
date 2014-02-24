@@ -29,12 +29,12 @@ HydroGravGrid::~HydroGravGrid() {
 
 void HydroGravGrid::deallocate_arrays() {
     HydroGrid::deallocate_arrays();
-    Poisson::deallocate_arrays();
+    MultiGrid::deallocate_arrays();
 }
 
 void HydroGravGrid::allocate_arrays() {
     HydroGrid::allocate_arrays();
-    Poisson::allocate_arrays();
+    MultiGrid::allocate_arrays();
 }
 
 void HydroGravGrid::set_refine_flags() {
@@ -148,7 +148,7 @@ void HydroGravGrid::create_child(const ChildIndex& c) {
     const int o = BW - 1;
     HydroGravGrid* g;
     HydroGrid::create_child(c);
-    Poisson::create_multigrid_child(c);
+    MultiGrid::create_multigrid_child(c);
     if (proc() == MPI_rank()) {
         g = dynamic_cast<HydroGravGrid*>(get_child(c));
         for (int k = BW; k < GNX - BW; k++) {

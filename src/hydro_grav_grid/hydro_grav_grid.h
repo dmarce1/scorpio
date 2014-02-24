@@ -10,14 +10,14 @@
 
 #include "../defs.h"
 #include "../hydro_grid/hydro_grid.h"
-#include "../poisson/poisson.h"
+#include "../multigrid/multigrid.h"
 #include "../reconstruct.h"
 #include "../indexer3d.h"
 #include "../physical_constants.h"
 
 #ifdef HYDRO_GRAV_GRID
 
-class HydroGravGrid: public HydroGrid, public Poisson {
+class HydroGravGrid: public HydroGrid, public MultiGrid {
 public:
 	virtual void init();
 	static void run(int argc, char* argv[]);

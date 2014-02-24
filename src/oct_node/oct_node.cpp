@@ -675,7 +675,7 @@ bool OctNode::use_refine_flags() {
 	return rc;
 }
 
-void OctNode::output(grid_output_t* ptr, int nx0, int bw0) const {
+void OctNode::output(grid_output_t* ptr, int nx0, int bw0, Real dtheta) const {
 	ChildIndex ci;
 	const int nvar = this->nvar_output();
 	int cnt;
@@ -695,9 +695,11 @@ void OctNode::output(grid_output_t* ptr, int nx0, int bw0) const {
 		for (int k = bw0; k < nx0 + 1 - bw0; k++) {
 			for (int j = bw0; j < nx0 + 1 - bw0; j++) {
 				for (int i = bw0; i < nx0 + 1 - bw0; i++) {
-					*(ptr->x) = this->xf(i);
-					*(ptr->y) = this->yf(j);
-					*(ptr->z) = this->zf(k);
+				    Real xtmp = this->xf(i);
+					Real ytmp  = this->yf(j);
+                   *(ptr->z) = this->zf(k);
+                   *(ptr->x) = cos(dtheta)*xtmp - sin(dtheta)*ytmp;
+                   *(ptr->y) = sin(dtheta)*xtmp + cos(dtheta)*ytmp;
 					ptr->x++;
 					ptr->y++;
 					ptr->z++;
@@ -770,7 +772,7 @@ void OctNode::output(grid_output_t* ptr, int nx0, int bw0) const {
 	}
 }
 
-void OctNode::output(const char* prefix, int counter, int nx0, int bw0) const {
+void OctNode::output(const char* prefix, int counter, int nx0, int bw0, double dtheta) const {
 		output_buffer = new Real[this->nvar_output() * (nx0 - 2 * bw0) * (nx0 - 2 * bw0) * (nx0 - 2 * bw0)];
 #ifdef USING_MIC
 		printf( "Called output on MIC - no silo!\n");
@@ -813,7 +815,7 @@ void OctNode::output(const char* prefix, int counter, int nx0, int bw0) const {
 		go.pi = 0;
 		go.ni = 0;
 		go.ei = 0;
-		output(&go, nx0, bw0);
+		output(&go, nx0, bw0,dtheta);
 		shapesize[0] = 8;
 		shapecnt[0] = nzones;
 		shapetype[0] = DB_ZONETYPE_HEX;

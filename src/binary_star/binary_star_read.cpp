@@ -12,7 +12,7 @@ struct node_t {
     double He;
     double phi;
     double et, tau;
-    double sr, lz, sz;
+    double sx, sy, lz, sz;
 };
 
 typedef struct {
@@ -21,7 +21,8 @@ typedef struct {
     DBucdvar* CO;
     DBucdvar* He;
     DBucdvar* tau;
-    DBucdvar* sr;
+    DBucdvar* sx;
+    DBucdvar* sy;
     DBucdvar* lz;
     DBucdvar* sz;
     DBucdvar* et;
@@ -54,7 +55,8 @@ void frame_read(frame_t* frame, const char* filename) {
     vars.phi = DBGetUcdvar(file, "phi");
     vars.tau = DBGetUcdvar(file, "tau");
     vars.et = DBGetUcdvar(file, "etot");
-    vars.sr = DBGetUcdvar(file, "sR");
+    vars.sx = DBGetUcdvar(file, "sx");
+    vars.sy = DBGetUcdvar(file, "sy");
     vars.lz = DBGetUcdvar(file, "lz");
     vars.sz = DBGetUcdvar(file, "sz");
     zones = mesh->zones;
@@ -70,7 +72,8 @@ void frame_read(frame_t* frame, const char* filename) {
         ptr->CO = (*reinterpret_cast<double**>(vars.CO->vals))[n];
         ptr->tau = (*reinterpret_cast<double**>(vars.tau->vals))[n];
         ptr->et = (*reinterpret_cast<double**>(vars.et->vals))[n];
-        ptr->sr = (*reinterpret_cast<double**>(vars.sr->vals))[n];
+        ptr->sx = (*reinterpret_cast<double**>(vars.sx->vals))[n];
+        ptr->sy = (*reinterpret_cast<double**>(vars.sy->vals))[n];
         ptr->lz = (*reinterpret_cast<double**>(vars.lz->vals))[n];
         ptr->sz = (*reinterpret_cast<double**>(vars.sz->vals))[n];
         ni1 = zones->nodelist[8 * n];
@@ -84,7 +87,8 @@ void frame_read(frame_t* frame, const char* filename) {
     DBFreeUcdvar(vars.CO);
     DBFreeUcdvar(vars.rho);
     DBFreeUcdvar(vars.phi);
-    DBFreeUcdvar(vars.sr);
+    DBFreeUcdvar(vars.sx);
+    DBFreeUcdvar(vars.sy);
     DBFreeUcdvar(vars.sz);
     DBFreeUcdvar(vars.lz);
     DBFreeUcdvar(vars.tau);
@@ -119,7 +123,7 @@ void BinaryStar::add_data_point(double x, double y, double z, double h, const St
 }
 
 void BinaryStar::read_silo(const char* name) {
-    if( MPI_rank() != 0 ) {
+    if (MPI_rank() != 0) {
         return;
     }
     frame_t frame;
@@ -161,8 +165,9 @@ void BinaryStar::read_silo(const char* name) {
         node_t* n = frame.node_list + i;
         State st;
         st.set_et(n->et);
-        st.set_sx(n->sr);
-        st.set_sy(n->lz);
+        st.set_sx(n->sx);
+        st.set_sy(n->sy);
+        st.set_lz(n->lz);
         st.set_sz(n->sz);
         st.set_frac(0, n->CO);
         st.set_frac(1, n->He);

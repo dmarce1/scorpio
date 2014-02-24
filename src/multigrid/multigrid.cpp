@@ -8,6 +8,8 @@
 
 #include "../indexer3d.h"
 #include "../tag.h"
+#include "../legendre.h"
+
 
 void MultiGrid::write(FILE* fp) const {
 	fwrite(&dx, sizeof(Real), 1, fp);
@@ -1220,137 +1222,105 @@ void MultiGrid::vup_init_send_wait(int) {
 
 }
 
-/*
- void MultiGrid::phi_face_compute(int) {
- for (int k = 1; k < PNX; k++) {
- for (int j = 1; j < PNX; j++) {
- for (int i = 1; i < PNX; i++) {
- phi_fx(i, j, k) = (phi(i, j, k) + phi(i - 1, j, k)) / 2.0;
- phi_fy(i, j, k) = (phi(i, j, k) + phi(i, j - 1, k)) / 2.0;
- phi_fz(i, j, k) = (phi(i, j, k) + phi(i, j, k - 1)) / 2.0;
- }
- }
- }
- inc_instruction_pointer();
- }
+void MultiGrid::accumulate_com() {
+    const int DX = (PNX / 2 - 1);
+    const Real dv = pow(get_dx(), 3);
+    Real dm;
+    for (ChildIndex ci = 0; ci < 8; ci++) {
+        if (get_child(ci) == NULL) {
+            for (int k = 1 + ci.get_z() * DX; k < PNX / 2 + ci.get_z() * DX; k++) {
+                for (int j = 1 + ci.get_y() * DX; j < PNX / 2 + ci.get_y() * DX; j++) {
+                    for (int i = 1 + ci.get_x() * DX; i < PNX / 2 + ci.get_x() * DX; i++) {
+                        dm = get_source(i, j, k) * dv;
+                        com[0] += dm;
+                        com[1] += MultiGrid::xc(i)*dm;
+                        com[2] += MultiGrid::yc(j)*dm;
+                        com[3] += MultiGrid::zc(k)*dm;
+                    }
+                }
+            }
+        }
+    }
+}
 
- void MultiGrid::phi_face_adjust_send(int) {
- Vector<int, 3> lb, ub;
- Real v;
- int i, cnt, tag, dir;
- for (int face = 0; face < 6; face++) {
- dir = face / 2;
- if (is_amr_bound(face)) {
- mpi_buffer[face] = new Real[PNX * PNX / 4];
- i = 1 + (PNX - 2) * (face & 1);
- cnt = 0;
- for (int k = 1; k < PNX - 1; k += 2) {
- for (int j = 1; j < PNX - 1; j += 2) {
- if (dir == 0) {
- v = +phi_fx(i, j + 0, k + 0);
- v += phi_fx(i, j + 0, k + 1);
- v += phi_fx(i, j + 1, k + 0);
- v += phi_fx(i, j + 1, k + 1);
- } else if (dir == 1) {
- v = +phi_fy(j + 0, i, k + 0);
- v += phi_fy(j + 0, i, k + 1);
- v += phi_fy(j + 1, i, k + 0);
- v += phi_fy(j + 1, i, k + 1);
- } else {
- v = +phi_fz(j + 0, k + 0, i);
- v += phi_fz(j + 0, k + 1, i);
- v += phi_fz(j + 1, k + 0, i);
- v += phi_fz(j + 1, k + 1, i);
- }
- v *= 0.25;
- mpi_buffer[face][cnt] = v;
- cnt++;
- }
- }
- assert(cnt == (PNX-2)*(PNX-2)/4);
- tag = tag_gen(TAG_PHIFACE, get_id(), face);
- MPI_Isend(mpi_buffer[face], cnt, MPI_DOUBLE_PRECISION, guard_proc(face), tag, MPI_COMM_WORLD, send_request + face);
- } else {
- send_request[face] = MPI_REQUEST_NULL;
- }
- }
- inc_instruction_pointer();
- }
+Real MultiGrid::compute_phi(Real x, Real y, Real z) {
+    static AssociatedLegendrePolynomial P(LMAX);
+    Real real = 0.0;
+    Real r, theta, phi, prpow, mphi, rpow;
+    x -= com[1];
+    y -= com[2];
+    z -= com[3];
+    r = sqrt(x * x + y * y + z * z);
+    theta = acos(z / r);
+    phi = atan2(y, x);
+    P.generate(cos(theta));
 
- void MultiGrid::phi_face_adjust_send_wait(int) {
- int flag;
- MPI_Testall(6, send_request, &flag, MPI_STATUS_IGNORE);
- if (flag) {
- for (int i = 0; i < 6; i++) {
- if (is_amr_bound(i)) {
- delete[] mpi_buffer[i];
- }
- }
- }
- if (flag) {
- inc_instruction_pointer();
- }
- }
+    rpow = 1.0;
+    for (int l = 0; l <= LMAX; l++) {
+        rpow /= r;
+        for (int m = -l; m <= l; m++) {
+            prpow = P.get(l, m) * rpow;
+            mphi = Real(m) * phi;
+            real -= prpow * (r_poles[l][m] * cos(mphi) - i_poles[l][m] * sin(mphi));
+        }
+    }
+    return real;
 
- void MultiGrid::phi_face_adjust_recv(int) {
- if (amr_cnt > 0) {
- int tag;
- for (int i = 0; i < amr_cnt; i++) {
- const int sz = (PNX - 2) * (PNX - 2) / 4;
- mpi_buffer[i] = new Real[sz];
- tag = tag_gen(TAG_PHIFACE, amr_id[i], amr_face[i]);
- MPI_Irecv(mpi_buffer[i], sz, MPI_DOUBLE_PRECISION, amr_child_proc[i], tag, MPI_COMM_WORLD, amr_request + i);
- }
- }
- inc_instruction_pointer();
- }
+}
 
- void MultiGrid::phi_face_adjust_recv_wait(int) {
- int flag;
- if (amr_cnt > 0) {
- MPI_Testall(amr_cnt, amr_request, &flag, MPI_STATUS_IGNORE);
- if (flag) {
- int cnt, dir;
- int i;
- for (int ci = 0; ci < amr_cnt; ci++) {
- dir = amr_face[ci] / 2;
- cnt = 0;
- i = amr_lb[ci][dir] / 2;
- if (i == PNX / 2 - 1) {
- i++;
- } else if (i == PNX - 2) {
- i = PNX - 1;
- }
- if (dir == 0) {
- for (int k = amr_lb[ci][2] / 2; k <= amr_ub[ci][2] / 2; k++) {
- for (int j = amr_lb[ci][1] / 2; j <= amr_ub[ci][1] / 2; j++) {
- phi_fx(i, j, k) = mpi_buffer[ci][cnt];
- ++cnt;
- }
- }
- } else if (dir == 1) {
- for (int k = amr_lb[ci][2] / 2; k <= amr_ub[ci][2] / 2; k++) {
- for (int j = amr_lb[ci][0] / 2; j <= amr_ub[ci][0] / 2; j++) {
- phi_fy(j, i, k) = mpi_buffer[ci][cnt];
- ++cnt;
- }
- }
- } else {
- for (int k = amr_lb[ci][1] / 2; k <= amr_ub[ci][1] / 2; k++) {
- for (int j = amr_lb[ci][0] / 2; j <= amr_ub[ci][0] / 2; j++) {
- phi_fz(j, k, i) = mpi_buffer[ci][cnt];
- ++cnt;
- }
- }
- }
- delete[] mpi_buffer[ci];
- }
- }
- } else {
- flag = true;
- }
- if (flag) {
- inc_instruction_pointer();
- }
- }
- */
+void MultiGrid::compute_local_physical_boundaries() {
+    Vector<int, 3> ub, lb;
+    for (int f = 0; f < OCT_NSIB; f++) {
+        if (is_phys_bound(f)) {
+            lb = 0;
+            ub = PNX - 1;
+            lb[f / 2] = ub[f / 2] = (f % 2) * (PNX - 1);
+            for (Indexer3d i(lb, ub); !i.end(); i++) {
+                set_phi(i[0], i[1], i[2], MultiGrid::compute_phi(MultiGrid::xc(i[0]), MultiGrid::yc(i[1]), MultiGrid::zc(i[2])));
+            }
+        }
+    }
+}
+
+void MultiGrid::poles_compute() {
+    static AssociatedLegendrePolynomial P(LMAX);
+    int l, m, xlb, xub, ylb, yub, zlb, zub;
+    Real theta, phi, r, x, y, z, prpow, mphi;
+    Real dv = pow(get_dx(), 3) / (4.0 * M_PI);
+    Real x2, z2, y2;
+    for (ChildIndex ci = 0; ci < 8; ci++) {
+        if (get_child(ci) == NULL) {
+            xlb = 1 + ci.get_x() * (PNX / 2 - 1);
+            ylb = 1 + ci.get_y() * (PNX / 2 - 1);
+            zlb = 1 + ci.get_z() * (PNX / 2 - 1);
+            xub = xlb + (PNX / 2 - 1) - 1;
+            yub = ylb + (PNX / 2 - 1) - 1;
+            zub = zlb + (PNX / 2 - 1) - 1;
+            for (int j = ylb; j <= yub; j++) {
+                y = MultiGrid::yc(j) - com[2];
+                y2 = y * y;
+                for (int i = xlb; i <= xub; i++) {
+                    x = MultiGrid::xc(i) - com[1];
+                    x2 = x * x;
+                    phi = atan2(y, x);
+                    for (int k = zlb; k <= zub; k++) {
+                        z = MultiGrid::zc(k) - com[3];
+                        z2 = z * z;
+                        r = sqrt(x2 + y2 + z2);
+                        theta = acos(z / r);
+                        P.generate(cos(theta));
+                        for (l = 0; l <= LMAX; l++) {
+                            for (m = -l; m <= l; m++) {
+                                prpow = P.get(l, m) * pow(r, l) * dv * get_source(i, j, k);
+                                mphi = Real(m) * phi;
+                                r_poles[l][m] += prpow * cos(mphi);
+                                i_poles[l][m] -= prpow * sin(mphi);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+

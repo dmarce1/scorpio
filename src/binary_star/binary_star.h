@@ -9,14 +9,14 @@
 #define BINARY_STAR_H_
 
 #include "../hydro_grav_grid/hydro_grav_grid.h"
-#include "../hydro_FMM_grid/hydro_FMM_grid.h"
+#include "../FMM/FMM.h"
 #include "dwd.h"
 
 #ifdef HYDRO_GRAV_GRID
 #ifdef USE_FMM
-class BinaryStar: public HydroFMMGrid {
+class BinaryStar: public FMM {
 #else
-class BinaryStar: public HydroGravGrid {
+    class BinaryStar: public HydroGravGrid {
 #endif
 public:
     Array3d<Real, GNX, GNX, GNX> euler_force_coeff;
@@ -26,7 +26,7 @@ public:
     static Real compute_Idot();
     static _3Vec compute_Mdot(_3Vec* com);
     static void adjust_frame(Real dt);
-    static void apply_omega_dot(Real,Real,Real);
+    static void apply_omega_dot(Real, Real, Real);
     static void apply_Mdot(_3Vec);
     static binary_parameters_t bparam;
     static bool bparam_init;
@@ -116,27 +116,29 @@ public:
         case 7:
             return U.et();
         case 8:
+            return U.et() + U.rot_pot(x) + State::omega * U.lz();
+        case 9:
             return U[State::tau_index];
 #ifndef USE_FMM
-        case 9:
+            case 10:
             return get_phi(i - BW + 1, j - BW + 1, k - BW + 1);
-        case 10:
+            case 11:
             return cosx * gx(i, j, k) + sinx * gy(i, j, k);
-        case 11:
+            case 12:
             return glz(i, j, k);
-        case 12:
+            case 13:
             return gz(i, j, k);
         }
 #else
-        case 9:
-        return get_phi(i, j, k);
         case 10:
-        return cosx*gx(i, j, k)+sinx*gy(i,j,k);
+            return get_phi(i, j, k);
         case 11:
-        return g_lz(i, j, k);
+            return cosx * gx(i, j, k) + sinx * gy(i, j, k);
         case 12:
-        return gz(i, j, k);
-    }
+            return g_lz(i, j, k);
+        case 13:
+            return gz(i, j, k);
+        }
 #endif
         assert(false);
         return 0.0;
@@ -160,21 +162,22 @@ public:
         case 7:
             return "etot";
         case 8:
-            return "tau";
+            return "etot_inertial";
         case 9:
-            return "phi";
+            return "tau";
         case 10:
-            return "G_sR";
+            return "phi";
         case 11:
-            return "G_lz";
+            return "G_sR";
         case 12:
+            return "G_lz";
+        case 13:
             return "G_sz";
-        }
-        assert(false);
+        } assert(false);
         return "";
     }
     virtual int nvar_output() const {
-        return 13;
+        return 14;
     }
 };
 #endif
