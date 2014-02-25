@@ -865,35 +865,32 @@ void BinaryStar::read_from_file(const char* str, int* i1, int* i2) {
     if (MPI_rank() == 0) {
         printf("Reading checkpoint file\n");
     }
+    MPI_File fh;
     PhysicalConstants::set_cgs();
     char* fname;
     Real omega;
     FILE* fp;
     _3Vec O;
     asprintf(&fname, "./checkpoint/%s.%i.bin", str, MPI_rank());
-    fp = fopen(fname, "rb");
-    if (fp == NULL) {
-        printf("Error - Checkpoint file not found!");
-        abort();
-    }
+
+    MPI_File_open(MPI_COMM_SELF, fname, MPI_MODE_RDONLY, MPI_INFO_NULL, &fh);
     free(fname);
-    fread(&refine_floor, sizeof(Real), 1, fp);
-    fread(&State::ei_floor, sizeof(Real), 1, fp);
-    fread(&State::rho_floor, sizeof(Real), 1, fp);
-    fread(&com_vel_correction, sizeof(_3Vec), 1, fp);
-    fread(&O, sizeof(_3Vec), 1, fp);
-    fread(&(State::com_correction), sizeof(_3Vec), 1, fp);
-    fread(&omega, sizeof(Real), 1, fp);
-    fread(&State::omega0, sizeof(Real), 1, fp);
-    fread(&State::omega_dot, sizeof(Real), 1, fp);
-    fread(&dtheta, sizeof(Real), 1, fp);
-    set_origin(O);
-    fread(&last_dt, sizeof(Real), 1, fp);
-    fread(i1, sizeof(int), 1, fp);
-    fread(i2, sizeof(int), 1, fp);
-    get_root()->read_checkpoint(fp);
-    fclose(fp);
-    State::set_omega(omega);
+    MPI_File_read(fh, &refine_floor, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_read(fh, &State::ei_floor, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_read(fh, &State::rho_floor, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_read(fh, &com_vel_correction, sizeof(_3Vec), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_read(fh, &O, sizeof(_3Vec), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_read(fh, &State::com_correction, sizeof(_3Vec), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_read(fh, &State::omega, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_read(fh, &State::omega0, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_read(fh, &State::omega_dot, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_read(fh, &dtheta, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_read(fh, &last_dt, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_read(fh, &i1, sizeof(int), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_read(fh, &i2, sizeof(int), MPI_BYTE, MPI_STATUS_IGNORE );
+    get_root()->read_checkpoint(&fh);
+    MPI_File_close(&fh);
+
 #ifndef USE_FMM
     int count = OctNode::get_local_node_cnt();
     for (int i = 0; i < count; i++) {
@@ -911,36 +908,27 @@ void BinaryStar::write_to_file(int i1, int i2, const char* idname) {
     char* fname;
     Real omega = State::get_omega();
     FILE* fp;
+    MPI_File fh;
     _3Vec O = get_origin();
-
-//	asprintf(&fname, "mv -f checkpoint.hello.%i.bin checkpoint.goodbye.%i.bin 2> /dev/null\n", MPI_rank(), MPI_rank());
-//	system(fname);
-//	free(fname);
     char dummy;
-    if (MPI_rank() != 0) {
-        MPI_Recv(&dummy, 1, MPI_BYTE, MPI_rank() - 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE );
-    }
     asprintf(&fname, "./checkpoint/%s.%i.bin", idname, MPI_rank());
-    fp = fopen(fname, "wb");
+    MPI_File_open(MPI_COMM_SELF, fname, MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fh);
     free(fname);
-    fwrite(&refine_floor, sizeof(Real), 1, fp);
-    fwrite(&State::ei_floor, sizeof(Real), 1, fp);
-    fwrite(&State::rho_floor, sizeof(Real), 1, fp);
-    fwrite(&com_vel_correction, sizeof(_3Vec), 1, fp);
-    fwrite(&O, sizeof(_3Vec), 1, fp);
-    fwrite(&(State::com_correction), sizeof(_3Vec), 1, fp);
-    fwrite(&omega, sizeof(Real), 1, fp);
-    fwrite(&State::omega0, sizeof(Real), 1, fp);
-    fwrite(&State::omega_dot, sizeof(Real), 1, fp);
-    fwrite(&dtheta, sizeof(Real), 1, fp);
-    fwrite(&last_dt, sizeof(Real), 1, fp);
-    fwrite(&i1, sizeof(int), 1, fp);
-    fwrite(&i2, sizeof(int), 1, fp);
-    get_root()->write_checkpoint(fp);
-    fclose(fp);
-    if (MPI_rank() < MPI_size() - 1) {
-        MPI_Send(&dummy, 1, MPI_BYTE, MPI_rank() + 1, 0, MPI_COMM_WORLD );
-    }
+    MPI_File_write(fh, &refine_floor, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_write(fh, &State::ei_floor, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_write(fh, &State::rho_floor, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_write(fh, &com_vel_correction, sizeof(_3Vec), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_write(fh, &O, sizeof(_3Vec), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_write(fh, &State::com_correction, sizeof(_3Vec), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_write(fh, &State::omega, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_write(fh, &State::omega0, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_write(fh, &State::omega_dot, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_write(fh, &dtheta, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_write(fh, &last_dt, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_write(fh, &i1, sizeof(int), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_write(fh, &i2, sizeof(int), MPI_BYTE, MPI_STATUS_IGNORE );
+    get_root()->write_checkpoint(&fh);
+    MPI_File_close(&fh);
 }
 
 void BinaryStar::analyze() {
@@ -1566,8 +1554,8 @@ void BinaryStar::diagnostics(Real dt) {
         etall = tmp2[5];
         etall += State::omega * lz;
         etall += dynamic_cast<const BinaryStar*>(get_root())->get_flow_off()[State::et_index];
-      //  etall += dynamic_cast<const BinaryStar*>(get_root())->get_flow_off()[State::pot_index];
-       // etall += State::omega * dynamic_cast<const BinaryStar*>(get_root())->get_flow_off()[State::lz_index];
+        //  etall += dynamic_cast<const BinaryStar*>(get_root())->get_flow_off()[State::pot_index];
+        // etall += State::omega * dynamic_cast<const BinaryStar*>(get_root())->get_flow_off()[State::lz_index];
         lz += dynamic_cast<const BinaryStar*>(get_root())->get_flow_off()[State::lz_index];
         sx += dynamic_cast<const BinaryStar*>(get_root())->get_flow_off()[State::sx_index];
         sy += dynamic_cast<const BinaryStar*>(get_root())->get_flow_off()[State::sy_index];

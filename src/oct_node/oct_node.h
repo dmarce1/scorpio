@@ -73,8 +73,8 @@ protected:
     int last_proc() const;
     ChildIndex my_child_index() const;
     int next_proc() const;
-    virtual void write(FILE* fp) const = 0;
-    virtual void read(FILE* fp) = 0;
+    virtual void write(MPI_File* fh) = 0;
+    virtual void read(MPI_File* fh) = 0;
 public:
     bool get_refine_flag(const ChildIndex&) const;
     void set_refine_flag(const ChildIndex&, bool);
@@ -83,8 +83,8 @@ public:
     static int get_local_node_cnt();
     void init();
     bool is_phys_bound(OctFace) const;
-    virtual void write_checkpoint(FILE* fp) const;
-    virtual void read_checkpoint(FILE* fp);
+    virtual void write_checkpoint(MPI_File*) ;
+    virtual void read_checkpoint(MPI_File*);
     static OctNode* get_root();
     static void set_max_level_allowed(int l);
     static int get_max_level_allowed();

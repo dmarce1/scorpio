@@ -49,8 +49,8 @@ protected:
 		MultiGrid::set_origin(o);
 	}
 	static void solve_poisson();
-	virtual void write(FILE* fp) const;
-	virtual void read(FILE* fp);
+	virtual void write(MPI_File* fp) ;
+	virtual void read(MPI_File* fp);
 	static void step(Real);
 	static void setup_grid_structure();
 	static bool check_for_refine();

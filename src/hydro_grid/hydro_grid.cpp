@@ -12,25 +12,28 @@
 
 #ifdef USE_HYDRO_GRID
 
-void HydroGrid::write(FILE* fp) const {
-    fwrite(&dx, sizeof(Real), 1, fp);
+void HydroGrid::write(MPI_File* fh) {
+    MPI_File_write(*fh, &dx, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
     if (get_level() == 0) {
-        fwrite(&h0, sizeof(Real), 1, fp);
-        fwrite(&FO, sizeof(State), 1, fp);
+        if (get_time() <= 0.0) {
+            FO = FO0 = 0.0;
+        }
+        MPI_File_write(*fh, &h0, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
+        MPI_File_write(*fh, &FO, sizeof(State), MPI_BYTE, MPI_STATUS_IGNORE );
     }
     if (proc() == MPI_rank()) {
-        fwrite(U.ptr(), sizeof(State), GNX * GNX * GNX, fp);
+        MPI_File_write(*fh, U.ptr(), sizeof(State) * GNX * GNX * GNX, MPI_BYTE, MPI_STATUS_IGNORE );
     }
 }
 
-void HydroGrid::read(FILE* fp) {
-    fread(&dx, sizeof(Real), 1, fp);
+void HydroGrid::read(MPI_File* fh) {
+    MPI_File_read(*fh, &dx, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
     if (get_level() == 0) {
-        fread(&h0, sizeof(Real), 1, fp);
-        fread(&FO, sizeof(State), 1, fp);
+        MPI_File_read(*fh, &h0, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
+        MPI_File_read(*fh, &FO, sizeof(State), MPI_BYTE, MPI_STATUS_IGNORE );
     }
     if (proc() == MPI_rank()) {
-        fread(U.ptr(), sizeof(State), GNX * GNX * GNX, fp);
+        MPI_File_read(*fh, U.ptr(), sizeof(State) * GNX * GNX * GNX, MPI_BYTE, MPI_STATUS_IGNORE );
     }
 }
 
@@ -244,8 +247,7 @@ void HydroGrid::amr_bnd_send(int dir) {
                                 cnt++;
                             }
                         }
-                    }
-                    assert( cnt == sz);
+                    }assert( cnt == sz);
                     tag = tag_gen(TAG_FLUX, g->get_id(), f);
                     MPI_Isend(mpi_amr_buffer[2 * dir][amr_cnt[dir]], cnt, MPI_state_t, g->proc(), tag, MPI_COMM_WORLD, &(amr_send_request[dir][amr_cnt[dir]]));
                     amr_cnt[dir]++;
@@ -627,8 +629,7 @@ void HydroGrid::flux_cf_adjust_recv_wait(int dir) {
                                 cnt++;
                             }
                         }
-                    }
-                    assert( cnt == (GNX-2*BW)*(GNX-2*BW)/4);
+                    }assert( cnt == (GNX-2*BW)*(GNX-2*BW)/4);
                     delete[] mpi_amr_buffer[f][ci];
                 }
             }

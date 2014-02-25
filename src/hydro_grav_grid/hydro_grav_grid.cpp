@@ -8,14 +8,14 @@
 #include "hydro_grav_grid.h"
 #ifdef HYDRO_GRAV_GRID
 
-void HydroGravGrid::write(FILE* fp) const {
-    HydroGrid::write(fp);
-    MultiGrid::write(fp);
+void HydroGravGrid::write(MPI_File* fh)  {
+    HydroGrid::write(fh);
+    MultiGrid::write(fh);
 }
 
-void HydroGravGrid::read(FILE* fp) {
-    HydroGrid::read(fp);
-    MultiGrid::read(fp);
+void HydroGravGrid::read(MPI_File* fh) {
+    HydroGrid::read(fh);
+    MultiGrid::read(fh);
 }
 
 HydroGravGrid::HydroGravGrid() {

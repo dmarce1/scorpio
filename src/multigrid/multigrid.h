@@ -126,9 +126,9 @@ protected:
 	static void set_origin(const _3Vec& o) {
 		origin = o;
 	}
-	virtual void write(FILE* fp) const;
+	virtual void write(MPI_File* fh);
 	int guard_proc(OctFace f) const;
-	virtual void read(FILE* fp);
+	virtual void read(MPI_File* fh);
 	virtual void inject_from_parent(ChildIndex);
 	virtual void create_multigrid_child(const ChildIndex& c);
 	virtual Real get_output_point(int i, int j, int k, int l) const;
