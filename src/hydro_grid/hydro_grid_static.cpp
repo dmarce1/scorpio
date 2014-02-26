@@ -13,7 +13,7 @@ MPI_Datatype HydroGrid::MPI_child_t[8];
 Real HydroGrid::h0 = (2.0 * GRID_DIM / Real(GNX - 2 * BW));
 Real HydroGrid::_dt, HydroGrid::_beta, HydroGrid::eax;
 bool HydroGrid::initialized = false;
-bool HydroGrid::shadow = true;
+bool HydroGrid::shadow = false;
 Real HydroGrid::last_dt = -1.0;
 _3Vec HydroGrid::origin;
 State HydroGrid::FO0 = Vector<Real, STATE_NF>(0.0);

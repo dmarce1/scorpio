@@ -8,6 +8,7 @@ CPP_SRCS += \
 ../src/comm.cpp \
 ../src/legendre.cpp \
 ../src/main.cpp \
+../src/parameter_reader.cpp \
 ../src/physical_constants.cpp \
 ../src/program.cpp \
 ../src/reconstruct.cpp \
@@ -22,6 +23,7 @@ OBJS += \
 ./src/comm.o \
 ./src/legendre.o \
 ./src/main.o \
+./src/parameter_reader.o \
 ./src/physical_constants.o \
 ./src/program.o \
 ./src/reconstruct.o \
@@ -35,6 +37,7 @@ CPP_DEPS += \
 ./src/comm.d \
 ./src/legendre.d \
 ./src/main.d \
+./src/parameter_reader.d \
 ./src/physical_constants.d \
 ./src/program.d \
 ./src/reconstruct.d \

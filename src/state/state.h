@@ -30,7 +30,7 @@ public:
     static Real omega;
     static Real omega0;
     static Real omega_dot;
-    static _3Vec com_correction;
+    static Real driving_rate,driving_time;
 public:
     static void set_gamma(Real g);
     static Real get_omega();

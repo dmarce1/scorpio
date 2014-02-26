@@ -13,7 +13,7 @@ Real State::ei_floor = 1.0e-20;
 Real State::omega = 0.0;
 Real State::omega0 = 0.0;
 Real State::omega_dot = 0.0;
-_3Vec State::com_correction = 0.0;
+Real State::driving_rate, State::driving_time;
 
 void State::set_omega(Real o) {
     omega = o;
@@ -154,26 +154,24 @@ Vector<Real, STATE_NF> State::source(const _3Vec& X, Real t) const {
     s[sx_index] += omega * (*this)[sy_index];
     s[sy_index] -= omega * (*this)[sx_index];
 
- //   s[sx_index] += rho() * com_correction[0];
-  //  s[sy_index] += rho() * com_correction[1];
-   // s[sz_index] += rho() * com_correction[2];
+    //   s[sx_index] += rho() * com_correction[0];
+    //  s[sy_index] += rho() * com_correction[1];
+    // s[sz_index] += rho() * com_correction[2];
     //s[lz_index] += rho() * (X[0] * com_correction[1] - X[1] * com_correction[0]);
 #ifdef USE_FMM
- //  s[et_index] += -lz() * omega_dot;
+    //  s[et_index] += -lz() * omega_dot;
 #else
     s[et_index] += -(lz() - rho() * omega * (X[0] * X[0] + X[1] * X[1])) * omega_dot;
 #endif
-#ifdef DRIVING
-    const Real period = 2.0 * M_PI / omega;
-    if (t < DRIVING_TIME * period) {
-        s[lz_index] -= (*this)[lz_index] * DRIVING / period;
+    const Real period = 2.0 * M_PI / omega0;
+    if (driving_rate != 0.0 && t < driving_time * period) {
+        s[lz_index] -= (*this)[lz_index] * driving_rate / period;
     }
-#endif
     return s;
 }
 
 const char* State::field_name(int i) {
-    assert(i >= 0); assert(i < STATE_NF);
+    assert(i >= 0);assert(i < STATE_NF);
     switch (i) {
     case State::d_index:
         return "d";
@@ -232,7 +230,7 @@ void State::floor(const _3Vec& X) {
     (*this)[sy_index] = rho() * v_y;
     Real rho1, rho2;
     Real de = pot();
-   // (*this)[d_index] = max((*this)[d_index], rho_floor);
+    // (*this)[d_index] = max((*this)[d_index], rho_floor);
     (*this)[tau_index] = max(pow(ei_floor, 1.0 / gamma), (*this)[tau_index]);
     if (NFRAC > 1) {
         Real tot;

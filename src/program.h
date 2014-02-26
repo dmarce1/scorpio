@@ -4,6 +4,7 @@
 class Program {
 public:
 	Program();
+	static void print_help();
 	int run(int, char* a[]);
 	virtual ~Program();
 };

@@ -1,6 +1,7 @@
 #include "binary_star.h"
 #include "../FMM/FMM.h"
 #include <list>
+#include "program.h"
 
 #ifdef HYDRO_GRAV_GRID
 #ifdef BINARY_STAR
@@ -142,7 +143,8 @@ void BinaryStar::compute_axis(Real dt, Real* theta, Real* theta_dot) {
     Real omega1 = omega0 + dt * State::omega_dot;
     if (MPI_rank() == 0) {
         FILE* fp = fopen("eigen.dat", "at");
-        fprintf(fp, "%.6e %.12e %.12e %.12e %.12e %.12e   \n", dynamic_cast<BinaryStar*>(get_root())->get_time(), State::omega, State::omega_dot, *theta, *theta_dot, dtheta);
+        fprintf(fp, "%.6e %.12e %.12e %.12e %.12e %.12e   \n", dynamic_cast<BinaryStar*>(get_root())->get_time(), State::omega, State::omega_dot, *theta,
+                *theta_dot, dtheta);
         fclose(fp);
     }
     for (int l = 0; l < get_local_node_cnt(); l++) {
@@ -885,7 +887,7 @@ void BinaryStar::read_from_file(const char* str, int* i1, int* i2) {
     FILE* fp;
     _3Vec O;
     asprintf(&fname, "./checkpoint/%s.%i.bin", str, MPI_rank());
-
+    double dummy[100];
     MPI_File_open(MPI_COMM_SELF, fname, MPI_MODE_RDONLY, MPI_INFO_NULL, &fh);
     free(fname);
     MPI_File_read(fh, &refine_floor, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
@@ -893,7 +895,9 @@ void BinaryStar::read_from_file(const char* str, int* i1, int* i2) {
     MPI_File_read(fh, &State::rho_floor, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
     MPI_File_read(fh, &com_vel_correction, sizeof(_3Vec), MPI_BYTE, MPI_STATUS_IGNORE );
     MPI_File_read(fh, &O, sizeof(_3Vec), MPI_BYTE, MPI_STATUS_IGNORE );
-    MPI_File_read(fh, &State::com_correction, sizeof(_3Vec), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_read(fh, dummy, (sizeof(_3Vec) - 2 * sizeof(Real)), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_read(fh, &State::driving_time, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_read(fh, &State::driving_rate, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
     MPI_File_read(fh, &State::omega, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
     MPI_File_read(fh, &State::omega0, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
     MPI_File_read(fh, &State::omega_dot, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
@@ -924,16 +928,18 @@ void BinaryStar::write_to_file(int i1, int i2, const char* idname) {
     FILE* fp;
     MPI_File fh;
     _3Vec O = get_origin();
-    char dummy;
     asprintf(&fname, "./checkpoint/%s.%i.bin", idname, MPI_rank());
     MPI_File_open(MPI_COMM_SELF, fname, MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fh);
     free(fname);
+    double dummy[100];
     MPI_File_write(fh, &refine_floor, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
     MPI_File_write(fh, &State::ei_floor, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
     MPI_File_write(fh, &State::rho_floor, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
     MPI_File_write(fh, &com_vel_correction, sizeof(_3Vec), MPI_BYTE, MPI_STATUS_IGNORE );
     MPI_File_write(fh, &O, sizeof(_3Vec), MPI_BYTE, MPI_STATUS_IGNORE );
-    MPI_File_write(fh, &State::com_correction, sizeof(_3Vec), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_write(fh, dummy, (sizeof(_3Vec) - 2 * sizeof(Real)), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_write(fh, &State::driving_time, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_write(fh, &State::driving_rate, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
     MPI_File_write(fh, &State::omega, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
     MPI_File_write(fh, &State::omega0, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
     MPI_File_write(fh, &State::omega_dot, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
@@ -1302,36 +1308,58 @@ void BinaryStar::step(Real dt) {
 
 }
 
+#include "parameter_reader.h"
+
 void BinaryStar::run(int argc, char* argv[]) {
     int mingrids, maxgrids;
     char* silo_in_file;
     mingrids = 0;
     maxgrids = 1000000000;
-    if (argc == 4) {
-        bparam.m1 = atof(argv[2]);
-        bparam.m2 = atof(argv[3]);
-    } else if (argc == 5) {
-        mingrids = atoi(argv[3]);
-        maxgrids = atoi(argv[4]);
-    } else if (argc == 2) {
+
+    if (!read_parameter(argc, argv, "driving_time", &State::driving_time)) {
+        State::driving_time = 0.0;
+    }
+    if (!read_parameter(argc, argv, "driving_rate", &State::driving_rate)) {
+        State::driving_rate = 0.01;
+    }
+
+    double X;
+    char restart_name[1024];
+    if (read_parameter(argc, argv, "scf")) {
+        if (!read_parameter(argc, argv, "M1", &bparam.m1)) {
+            MPI_rank() ? 0 : printf("Missing accretor mass argument -M1=?\n");
+            Program::print_help();
+            return;
+        }
+        if (!read_parameter(argc, argv, "M2", &bparam.m2)) {
+            MPI_rank() ? 0 : printf("Missing donor mass argument -M2=?\n");
+            Program::print_help();
+            return;
+        }
+        MPI_rank() ? 0 : printf("Invoking SCF for M1=%f and M2=%f\n", bparam.m1, bparam.m2);
+        scf_run(argc, argv);
+        return;
+    } else if (read_parameter(argc, argv, "analyze")) {
         read_silo(argv[1]);
         HydroGrid::redistribute_grids();
         analyze();
         return;
-    } else if (argc != 3) {
-        printf("Missing arguments\n");
+    } else if (read_parameter(argc, argv, "restart", restart_name, 1024)) {
+        MPI_rank() ? 0 : printf("Restarting from checkpoint files %s\n", restart_name);
+        if (!read_parameter(argc, argv, "mingrids", &mingrids)) {
+            mingrids = MPI_size() * 2;
+        }
+        if (!read_parameter(argc, argv, "maxgrids", &maxgrids)) {
+            maxgrids = MPI_size() * 16;
+        }
+    } else {
+        printf("Missing restart file name\n");
+        Program::print_help();
         return;
     }
-//	State::turn_off_total_energy();
-
-    /*	if (scf_code) {
-     scf_run(argc, argv);
-     return;
-     }*/
 #ifndef USE_FMM
     set_poisson_tolerance(1.0e-8);
 #endif
-    shadow_off();
 
     Real dt;
     bool do_output, last_step;
@@ -1339,16 +1367,9 @@ void BinaryStar::run(int argc, char* argv[]) {
     int ostep_cnt = 0;
     int nnodes;
 
-    if (argc == 4) {
-//		scf_code = true;
-        scf_run(argc, argv);
-        return;
-        scf_code = false;
-        PhysicalConstants::set_cgs();
-//						setup_grid_structure();
-    } else {
-        read_from_file(argv[2], &step_cnt, &ostep_cnt);
-    }
+    scf_code = false;
+    PhysicalConstants::set_cgs();
+    read_from_file(restart_name, &step_cnt, &ostep_cnt);
 
     PhysicalConstants::set_cgs();
 
