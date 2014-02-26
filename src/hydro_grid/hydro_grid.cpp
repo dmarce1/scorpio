@@ -41,7 +41,7 @@ void HydroGrid::inject_from_parent(ChildIndex c) {
     const HydroGrid* p = dynamic_cast<const HydroGrid*>(get_parent());
     Vector<Real, STATE_NF> s1, s2, s3;
     State u;
-#pragma omp parallel for collapse(2)
+//#pragma omp parallel for collapse(2)
     for (int k = BW; k < GNX - BW; k += 2) {
         for (int j = BW; j < GNX - BW; j += 2) {
             int k0 = (BW + k) / 2 + c.get_z() * (GNX / 2 - BW);
@@ -112,7 +112,7 @@ HydroGrid::HydroGrid() :
     offset = 0;
     time = 0.0;
 
-#pragma omp parallel for
+//#pragma omp parallel for
     for (int i = 0; i < OCT_NCHILD; i++) {
         send_request[i] = recv_request[i] = MPI_REQUEST_NULL;
         for (int j = 0; j < 3; j++) {
@@ -374,7 +374,7 @@ void HydroGrid::flux_bnd_send_wait(int dir) {
 }
 
 void HydroGrid::flux_compute(int dir) {
-#pragma omp parallel for collapse(1)
+//#pragma omp parallel for collapse(1)
     for (int k = BW; k < GNX - BW; k++) {
         for (int j = BW; j < GNX - BW; j++) {
             State q0[GNX], ql[GNX], qr[GNX];
@@ -678,7 +678,7 @@ Vector<Real, STATE_NF> HydroGrid::get_dudt(int i, int j, int k) const {
 void HydroGrid::compute_dudt(int dir) {
     if (dir == 0) {
         const Real da = dx * dx;
-#pragma omp parallel for collapse(2)
+//#pragma omp parallel for collapse(2)
         for (int k = BW; k < GNX - BW; k++) {
             for (int j = BW; j < GNX - BW; j++) {
                 _3Vec x;
@@ -700,34 +700,34 @@ void HydroGrid::compute_dudt(int dir) {
 void HydroGrid::compute_flow_off() {
     const Real da = dx * dx;
     int k, j, i;
-#pragma omp parallel for collapse(2)
+//#pragma omp parallel for collapse(2)
     for (k = BW; k < GNX - BW; k++) {
         for (j = BW; j < GNX - BW; j++) {
             for (i = BW; i < GNX - BW; i++) {
                 if (!zone_is_refined(i, j, k)) {
                     _3Vec x = HydroGrid::X(i, j, k);
                     if (is_phys_bound(XL) && i == BW) {
-#pragma omp critical
+//#pragma omp critical
                         DFO -= (F[0](i, j, k)) * da;
                     }
                     if (is_phys_bound(XU) && i == GNX - BW - 1) {
-#pragma omp critical
+//#pragma omp critical
                         DFO += (F[0](i + 1, j, k)) * da;
                     }
                     if (is_phys_bound(YL) && j == BW) {
-#pragma omp critical
+//#pragma omp critical
                         DFO -= (F[1](i, j, k)) * da;
                     }
                     if (is_phys_bound(YU) && j == GNX - BW - 1) {
-#pragma omp critical
+//#pragma omp critical
                         DFO += (F[1](i, j + 1, k)) * da;
                     }
                     if (is_phys_bound(ZL) && k == BW) {
-#pragma omp critical
+//#pragma omp critical
                         DFO -= (F[2](i, j, k)) * da;
                     }
                     if (is_phys_bound(ZU) && k == GNX - BW - 1) {
-#pragma omp critical
+//#pragma omp critical
                         DFO += (F[2](i, j, k + 1)) * da;
                     }
                 }
@@ -738,7 +738,7 @@ void HydroGrid::compute_flow_off() {
 
 void HydroGrid::compute_update(int dir) {
     if (dir == 0) {
-#pragma omp parallel for collapse(2)
+//#pragma omp parallel for collapse(2)
         for (int k = BW; k < GNX - BW; k++) {
             for (int j = BW; j < GNX - BW; j++) {
                 for (int i = BW; i < GNX - BW; i++) {
@@ -754,7 +754,7 @@ void HydroGrid::compute_update(int dir) {
 void HydroGrid::enforce_dual_energy_formalism(int dir) {
     if (dir == 0) {
         HydroGrid* g = this;
-#pragma omp parallel for collapse(2)
+//#pragma omp parallel for collapse(2)
         for (int k = BW; k < GNX - BW; k++) {
             for (int j = BW; j < GNX - BW; j++) {
                 for (int i = BW; i < GNX - BW; i++) {
@@ -785,7 +785,7 @@ void HydroGrid::set_refine_flags() {
             set_refine_flag(i, true);
         }
     } else if (get_level() < get_max_level_allowed()) {
-#pragma omp parallel for collapse(2)
+//#pragma omp parallel for collapse(2)
         for (int k = BW; k < GNX - BW; k++) {
             for (int j = BW; j < GNX - BW; j++) {
                 ChildIndex c;
@@ -795,7 +795,7 @@ void HydroGrid::set_refine_flags() {
                     c.set_x(2 * i / GNX);
                     if (!get_refine_flag(c)) {
                         if (E0(i, j, k).mag() > 10000) {
-#pragma omp critical
+//#pragma omp critical
                             set_refine_flag(c, true);
                         }
                     }
@@ -878,7 +878,7 @@ Real HydroGrid::zf(int i) const {
 void HydroGrid::max_dt_compute(int dir) {
     Real this_dt;
     Real dtinv = 0.0;
-#pragma omp parallel for collapse(1)
+//#pragma omp parallel for collapse(1)
     for (int k = BW; k < GNX - BW; k++) {
         for (int j = BW; j < GNX - BW; j++) {
             _3Vec x;
@@ -923,7 +923,7 @@ void HydroGrid::max_dt_compute(int dir) {
                     this_dtinv = max(this_dtinv, ql[i].max_abs_z_eigen(x), qr[i].max_abs_z_eigen(x));
                 }
             }
-#pragma omp critical
+//#pragma omp critical
             dtinv = max(this_dtinv, dtinv);
         }
     }

@@ -35,17 +35,14 @@
 static int face_id[26];
 static int face_opp_id[26];
 
-FMM::ifunc_t FMM::cs[FSTAGE + 1] = { &FMM::moments_recv, &FMM::moments_recv_wait, &FMM::moments_send,
-        &FMM::moments_send_wait, &FMM::moments_communicate_all, &FMM::moments_communicate_wait_all,
-        &FMM::compute_interactions, &FMM::expansion_recv, &FMM::expansion_recv_wait, &FMM::expansion_send,
+FMM::ifunc_t FMM::cs[FSTAGE + 1] = { &FMM::moments_recv, &FMM::moments_recv_wait, &FMM::moments_send, &FMM::moments_send_wait, &FMM::moments_communicate_all,
+        &FMM::moments_communicate_wait_all, &FMM::compute_interactions, &FMM::expansion_recv, &FMM::expansion_recv_wait, &FMM::expansion_send,
         &FMM::expansion_send_wait, &FMM::null };
 
-FMM::ifunc_t FMM::cs_dot[FSTAGE + 1] = { &FMM::moments_recv_dot, &FMM::moments_recv_wait, &FMM::moments_send_dot,
-        &FMM::moments_send_wait_dot, &FMM::moments_communicate_all_dot, &FMM::moments_communicate_wait_all,
-        &FMM::compute_interactions_dot, &FMM::expansion_recv_dot, &FMM::expansion_recv_wait_dot, &FMM::expansion_send_dot,
-        &FMM::expansion_send_wait, &FMM::null };
-FMM::ifunc_t FMM::cs_children[5] = { &FMM::_4force_recv, &FMM::_4force_recv_wait, &FMM::_4force_send,
-        &FMM::_4force_send_wait, &FMM::null };
+FMM::ifunc_t FMM::cs_dot[FSTAGE + 1] = { &FMM::moments_recv_dot, &FMM::moments_recv_wait, &FMM::moments_send_dot, &FMM::moments_send_wait_dot,
+        &FMM::moments_communicate_all_dot, &FMM::moments_communicate_wait_all, &FMM::compute_interactions_dot, &FMM::expansion_recv_dot,
+        &FMM::expansion_recv_wait_dot, &FMM::expansion_send_dot, &FMM::expansion_send_wait, &FMM::null };
+FMM::ifunc_t FMM::cs_children[5] = { &FMM::_4force_recv, &FMM::_4force_recv_wait, &FMM::_4force_send, &FMM::_4force_send_wait, &FMM::null };
 
 MPI_Datatype FMM::MPI_multipole_t;
 MPI_Datatype FMM::MPI_send_bnd_t[26];
@@ -92,7 +89,7 @@ void FMM::moments_recv(int) {
             const int xub = xlb + (INX / 2) - 1;
             const int yub = ylb + (INX / 2) - 1;
             const int zub = zlb + (INX / 2) - 1;
-#pragma omp parallel for collapse(2)
+//#pragma omp parallel for collapse(2)
             for (int k = zlb; k <= zub; k++) {
                 for (int j = ylb; j <= yub; j++) {
                     for (int i = xlb; i <= xub; i++) {
@@ -134,7 +131,7 @@ void FMM::moments_recv_dot(int) {
             const int xub = xlb + (INX / 2) - 1;
             const int yub = ylb + (INX / 2) - 1;
             const int zub = zlb + (INX / 2) - 1;
-#pragma omp parallel for collapse(2)
+//#pragma omp parallel for collapse(2)
             for (int k = zlb; k <= zub; k++) {
                 for (int j = ylb; j <= yub; j++) {
                     for (int i = xlb; i <= xub; i++) {
@@ -170,13 +167,13 @@ void FMM::moments_send(int) {
                     tmp.X = 0.0;
                     tmp.is_leaf = false;
                     Real mass = 0.0;
-#pragma omp parallel for collapse(2) reduction(+:mass)
+//#pragma omp parallel for collapse(2) reduction(+:mass)
                     for (int a = i; a < i + 2; a++) {
                         for (int b = j; b < j + 2; b++) {
                             for (int c = k; c < k + 2; c++) {
                                 multipole_t& child = poles(a, b, c);
                                 mass += child.M();
-#pragma omp critical
+//#pragma omp critical
                                 tmp.X += child.X * child.M();
                             }
                         }
@@ -194,13 +191,13 @@ void FMM::moments_send(int) {
                         }
                         tmp.X *= 0.125;
                     }
-#pragma omp parallel for collapse(2) private(Y)
+//#pragma omp parallel for collapse(2) private(Y)
                     for (int a = i; a < i + 2; a++) {
                         for (int b = j; b < j + 2; b++) {
                             for (int c = k; c < k + 2; c++) {
                                 multipole_t& child = poles(a, b, c);
                                 Y = child.X - tmp.X;
-#pragma omp critical
+//#pragma omp critical
                                 tmp.M += child.M >> Y;
                             }
                         }
@@ -210,8 +207,7 @@ void FMM::moments_send(int) {
                     cnt++;
                 }
             }
-        }
-        assert(cnt==INX * INX * INX / 8);
+        }assert(cnt==INX * INX * INX / 8);
         int tag = tag_gen(TAG_FMM_MOMENT, get_parent()->get_id(), my_child_index());
         MPI_Isend(moment_buffer, cnt * sizeof(multipole_t), MPI_BYTE, get_parent()->proc(), tag, MPI_COMM_WORLD, send_request);
     }
@@ -231,13 +227,13 @@ void FMM::moments_send_dot(int) {
                 for (int i = FBW; i < FNX - FBW; i += 2) {
                     tmp.M_dot = 0.0;
                     Real mass = 0.0;
-#pragma omp parallel for collapse(2) private(Y)
+//#pragma omp parallel for collapse(2) private(Y)
                     for (int a = i; a < i + 2; a++) {
                         for (int b = j; b < j + 2; b++) {
                             for (int c = k; c < k + 2; c++) {
                                 multipole_t& child = poles(a, b, c);
                                 Y = child.X - Xp(i / 2, j / 2, k / 2);
-#pragma omp critical
+//#pragma omp critical
                                 tmp.M_dot += poles_dot(a, b, c).M_dot >> Y;
                             }
                         }
@@ -246,8 +242,7 @@ void FMM::moments_send_dot(int) {
                     cnt++;
                 }
             }
-        }
-        assert(cnt==INX * INX * INX / 8);
+        }assert(cnt==INX * INX * INX / 8);
         int tag = tag_gen(TAG_FMM_MOMENT, get_parent()->get_id(), my_child_index());
         MPI_Isend(moment_dot_buffer, cnt * sizeof(multipole_dot_t), MPI_BYTE, get_parent()->proc(), tag, MPI_COMM_WORLD, send_request);
     }
@@ -335,7 +330,7 @@ void FMM::compute_interactions(int) {
     const Real dxinv = 1.0 / get_dx();
     multipole_t* n1;
     taylor_t *l, *l1;
-#pragma omp for collapse(2)
+//#pragma omp for collapse(2)
     for (int k0 = FBW; k0 < FNX - FBW; k0++) {
         for (int j0 = FBW; j0 < FNX - FBW; j0++) {
             for (int i0 = FBW; i0 < FNX - FBW; i0++) {
@@ -345,8 +340,6 @@ void FMM::compute_interactions(int) {
             }
         }
     }
-
-//#define TEST
     for (int k0 = FBW; k0 < FNX - FBW; k0++) {
         for (int j0 = FBW; j0 < FNX - FBW; j0++) {
             for (int i0 = FBW; i0 < FNX - FBW; i0++) {
@@ -367,19 +360,12 @@ void FMM::compute_interactions(int) {
                     const Real factor = (3.0 + 3.0 / sqrt(2.0) + 1.0 / sqrt(3.0)) / 3.0;
                     l1->phi() -= factor * n1->M() / get_dx();
                 }
-#pragma omp parallel for  collapse(2) private(l1)
                 for (int k = zlb; k <= zub; k++) {
+                    const int k1 = k - k0 + INX;
                     for (int j = ylb; j <= yub; j++) {
-                        taylor_t tmp;
-                        tmp.phi = 0.0;
-                        l1 = &tmp;
+                        const int j1 = j - j0 + INX;
+                        l1 = L.ptr(i0, j0, k0);
                         for (int i = xlb; i <= xub; i++) {
-#ifdef TEST
-                            if (((i0 > i) || (i == i0 && j0 > j) || (i == i0 && j == j0 && k0 >= k)) && i >= FBW && j >= FBW && k >= FBW && i < FNX - FBW
-                                    && j < FNX - FBW && k < FNX - FBW) {
-                                continue;
-                            }
-#endif
                             multipole_t* n2 = poles.ptr(i, j, k);
                             taylor_t* l2 = L.ptr(i, j, k);
                             bool interaction_pair;
@@ -394,43 +380,23 @@ void FMM::compute_interactions(int) {
                                     expansion_t D;
                                     D.compute_D(Y);
                                     l1->phi += n2->M * D;
-#ifdef TEST
-                                    D.invert();
-                                    l2->phi += n1->M * D;
-#endif
                                 } else {
-                                    const int k1 = k - k0 + INX;
-                                    const int j1 = j - j0 + INX;
                                     const int i1 = i - i0 + INX;
-                                    const Real d0 = d0_array[abs(k - k0)][abs(j - j0)][abs(i - i0)];
-                                    const Real d1x = d1_array[k1][j1][i1][0];
-                                    const Real d1y = d1_array[k1][j1][i1][1];
-                                    const Real d1z = d1_array[k1][j1][i1][2];
+                                    const Real* d1 = d1_array[k1][j1][i1];
                                     Real m2 = n2->M() * dxinv;
                                     Real m2dxinv = m2 * dxinv;
-                                    Real m1 = n1->M() * dxinv;
-                                    Real m1dxinv = m1 * dxinv;
-                                    l1->phi() += d0 * m2;
-                                    l1->phi(0) += d1x * m2dxinv;
-                                    l1->phi(1) += d1y * m2dxinv;
-                                    l1->phi(2) += d1z * m2dxinv;
-#ifdef TEST
-                                    l2->phi() += d0 * m1;
-                                    l2->phi(0) -= d1x * m1dxinv;
-                                    l2->phi(1) -= d1y * m1dxinv;
-                                    l2->phi(2) -= d1z * m1dxinv;
-#endif
+                                    l1->phi() += d0_array[abs(k - k0)][abs(j - j0)][abs(i - i0)] * m2;
+                                    for (int i = 0; i < 3; i++) {
+                                        l1->phi(i) += d1[i] * m2dxinv;
+                                    }
                                 }
                             }
                         }
-#pragma omp critical
-                        L.ptr(i0, j0, k0)->phi += tmp.phi;
                     }
                 }
             }
         }
     }
-#pragma omp for collapse(2) private(l,n1)
     for (int k0 = FBW; k0 < FNX - FBW; k0++) {
         for (int j0 = FBW; j0 < FNX - FBW; j0++) {
             for (int i0 = FBW; i0 < FNX - FBW; i0++) {
@@ -461,7 +427,6 @@ void FMM::compute_interactions_dot(int) {
     const Real dxinv = 1.0 / get_dx();
     multipole_dot_t* n1;
     taylor_dot_t *l, *l1;
-#pragma omp parallel for collapse(2)
     for (int k0 = FBW; k0 < FNX - FBW; k0++) {
         for (int j0 = FBW; j0 < FNX - FBW; j0++) {
             for (int i0 = FBW; i0 < FNX - FBW; i0++) {
@@ -490,20 +455,12 @@ void FMM::compute_interactions_dot(int) {
                     const Real factor = (3.0 + 3.0 / sqrt(2.0) + 1.0 / sqrt(3.0)) / 3.0;
                     l1->phi_dot() -= factor * n1->M_dot() / get_dx();
                 }
-#pragma omp parallel for collapse (2)
                 for (int k = zlb; k <= zub; k++) {
+                    const int k1 = k - k0 + INX;
                     for (int j = ylb; j <= yub; j++) {
-                        taylor_dot_t tmp;
-                        tmp.phi_dot = 0.0;
-                        l1 = &tmp;
+                        const int j1 = j - j0 + INX;
+                        l1 = L_dot.ptr(i0, j0, k0);
                         for (int i = xlb; i <= xub; i++) {
-
-#ifdef TEST
-                            if (((i0 > i) || (i == i0 && j0 > j) || (i == i0 && j == j0 && k0 >= k)) && i >= FBW && j >= FBW && k >= FBW && i < FNX - FBW
-                                    && j < FNX - FBW && k < FNX - FBW) {
-                                continue;
-                            }
-#endif
                             multipole_dot_t* n2 = poles_dot.ptr(i, j, k);
                             taylor_dot_t* l2 = L_dot.ptr(i, j, k);
                             bool interaction_pair;
@@ -518,32 +475,20 @@ void FMM::compute_interactions_dot(int) {
                                     expansion_t D;
                                     D.compute_D(Y);
                                     l1->phi_dot += n2->M_dot * D;
-#ifdef TEST
-                                    D.invert();
-                                    l2->phi_dot += n1->M_dot * D;
-#endif
                                 } else {
-                                    const int k1 = k - k0 + INX;
-                                    const int j1 = j - j0 + INX;
                                     const int i1 = i - i0 + INX;
                                     const Real d0 = d0_array[abs(k - k0)][abs(j - j0)][abs(i - i0)];
                                     Real dm2 = n2->M_dot() * dxinv;
                                     l1->phi_dot() += d0 * dm2;
                                     Real dm1 = n1->M_dot() * dxinv;
-#ifdef TEST
-                                    l2->phi_dot() += d0 * dm1;
-#endif
                                 }
                             }
                         }
-#pragma omp critical
-                        L_dot.ptr(i0, j0, k0)->phi_dot += tmp.phi_dot;
                     }
                 }
             }
         }
     }
-#pragma omp parallel for private(l) collapse(2)
     for (int k0 = FBW; k0 < FNX - FBW; k0++) {
         for (int j0 = FBW; j0 < FNX - FBW; j0++) {
             for (int i0 = FBW; i0 < FNX - FBW; i0++) {
@@ -586,7 +531,7 @@ void FMM::expansion_recv_wait(int) {
                         pL.g_lz = taylor_buffer[cnt].g_lz;
                         pL.X = taylor_buffer[cnt].X;
                         cnt++;
-#pragma omp parallel for collapse(2)
+//#pragma omp parallel for collapse(2)
                         for (int k = k0; k < k0 + 2; k++) {
                             for (int j = j0; j < j0 + 2; j++) {
                                 for (int i = i0; i < i0 + 2; i++) {
@@ -617,7 +562,7 @@ void FMM::expansion_send(int) {
         child = dynamic_cast<FMM*>(get_child(ci));
         if (child == NULL) {
             send_request[ci] = MPI_REQUEST_NULL;
-#pragma omp parallel for  collapse(2)
+//#pragma omp parallel for  collapse(2)
             for (int k = FBW; k < FNX - FBW; k++) {
                 for (int j = FBW; j < FNX - FBW; j++) {
                     for (int i = FBW; i < FNX - FBW; i++) {
@@ -666,7 +611,7 @@ void FMM::expansion_recv_wait_dot(int) {
                         taylor_dot_t pL;
                         pL.phi_dot = taylor_dot_buffer[cnt].phi_dot;
                         cnt++;
-#pragma omp parallel for collapse(2)
+//#pragma omp parallel for collapse(2)
                         for (int k = k0; k < k0 + 2; k++) {
                             for (int j = j0; j < j0 + 2; j++) {
                                 for (int i = i0; i < i0 + 2; i++) {
@@ -910,8 +855,7 @@ void FMM::_4force_send(int) {
                     cnt++;
                 }
             }
-        }
-        assert(cnt==INX * INX * INX / 8);
+        }assert(cnt==INX * INX * INX / 8);
         int tag = tag_gen(TAG_FMM_4FORCE, get_parent()->get_id(), my_child_index());
         MPI_Isend(_4force_buffer, cnt * sizeof(_4force_t), MPI_BYTE, get_parent()->proc(), tag, MPI_COMM_WORLD, send_request);
     }
@@ -1015,7 +959,7 @@ void FMM::store_pot() {
     FMM* g0;
     for (int n = 0; n < get_local_node_cnt(); n++) {
         g0 = dynamic_cast<FMM*>(get_local_node(n));
-#pragma omp parallel for collapse(2)
+//#pragma omp parallel for collapse(2)
         for (int k = BW; k < GNX - BW; k++) {
             for (int j = BW; j < GNX - BW; j++) {
                 for (int i = BW; i < GNX - BW; i++) {
@@ -1034,7 +978,7 @@ void FMM::account_pot() {
     FMM* g0;
     for (int n = 0; n < get_local_node_cnt(); n++) {
         g0 = dynamic_cast<FMM*>(get_local_node(n));
-#pragma omp parallel for collapse(2)
+//#pragma omp parallel for collapse(2)
         for (int k = BW; k < GNX - BW; k++) {
             for (int j = BW; j < GNX - BW; j++) {
                 for (int i = BW; i < GNX - BW; i++) {
@@ -1055,7 +999,7 @@ void FMM::update() {
     FMM* g0;
     for (int n = 0; n < get_local_node_cnt(); n++) {
         g0 = dynamic_cast<FMM*>(get_local_node(n));
-#pragma omp parallel for collapse(2)
+//#pragma omp parallel for collapse(2)
         for (int k = BW; k < GNX - BW; k++) {
             for (int j = BW; j < GNX - BW; j++) {
                 for (int i = BW; i < GNX - BW; i++) {
@@ -1071,7 +1015,7 @@ void FMM::update() {
                 }
             }
         }
-#pragma omp parallel for collapse(2)
+//#pragma omp parallel for collapse(2)
         for (int k = BW; k < GNX - BW; k++) {
             for (int j = BW; j < GNX - BW; j++) {
                 for (int i = BW; i < GNX - BW; i++) {
@@ -1093,7 +1037,7 @@ _3Vec FMM::system_com() {
     for (int n = 0; n < get_local_node_cnt(); n++) {
         g0 = dynamic_cast<FMM*>(get_local_node(n));
         if (g0->get_level() == 0) {
-#pragma omp parallel for collapse(2) reduction(+:mx,my,mz,mtot)
+//#pragma omp parallel for collapse(2) reduction(+:mx,my,mz,mtot)
             for (int k = BW; k < GNX - BW; k++) {
                 for (int j = BW; j < GNX - BW; j++) {
                     for (int i = BW; i < GNX - BW; i++) {
@@ -1126,7 +1070,7 @@ void FMM::to_conserved_energy() {
     HydroGrid* g0;
     for (int n = 0; n < get_local_node_cnt(); n++) {
         g0 = dynamic_cast<HydroGrid*>(get_local_node(n));
-#pragma omp parallel for collapse(2)
+//#pragma omp parallel for collapse(2)
         for (int k = BW - 1; k < GNX - BW + 1; k++) {
             for (int j = BW - 1; j < GNX - BW + 1; j++) {
                 for (int i = BW - 1; i < GNX - BW + 1; i++) {
@@ -1141,7 +1085,7 @@ void FMM::from_conserved_energy() {
     HydroGrid* g0;
     for (int n = 0; n < get_local_node_cnt(); n++) {
         g0 = dynamic_cast<HydroGrid*>(get_local_node(n));
-#pragma omp parallel for collapse(2)
+//#pragma omp parallel for collapse(2)
         for (int k = BW - 1; k < GNX - BW + 1; k++) {
             for (int j = BW - 1; j < GNX - BW + 1; j++) {
                 for (int i = BW - 1; i < GNX - BW + 1; i++) {
@@ -1309,11 +1253,11 @@ bool FMM::is_leaf(int i, int j, int k) const {
 void FMM::find_neighbors() {
     OctNode* corners[8];
     OctNode* edges[12];
-#pragma omp parallel for
+//#pragma omp parallel for
     for (int i = 0; i < 12; i++) {
         edges[i] = NULL;
     }
-#pragma omp parallel for
+//#pragma omp parallel for
     for (int i = 0; i < 8; i++) {
         corners[i] = NULL;
     }
@@ -1353,7 +1297,7 @@ void FMM::find_neighbors() {
         edges[9] = get_sibling(ZU)->get_sibling(YL);
         edges[11] = get_sibling(ZU)->get_sibling(YU);
     }
-#pragma omp parallel for
+//#pragma omp parallel for
     for (int i = 0; i < 8; i++) {
         int l = (i & 1) + ZL;
         int k = ((i & 2) >> 1) + YL;
@@ -1384,7 +1328,7 @@ void FMM::find_neighbors() {
             }
         }
     }
-#pragma omp parallel for
+//#pragma omp parallel for
     for (int i = 0; i < 6; i++) {
         if (get_sibling(i) != NULL) {
             neighbors[i] = dynamic_cast<FMM*>(get_sibling(i));
@@ -1392,7 +1336,7 @@ void FMM::find_neighbors() {
             neighbors[i] = NULL;
         }
     }
-#pragma omp parallel for
+//#pragma omp parallel for
     for (int i = 0; i < 12; i++) {
         if (edges[i] != NULL) {
             neighbors[i + 6] = dynamic_cast<FMM*>(edges[i]);
@@ -1400,7 +1344,7 @@ void FMM::find_neighbors() {
             neighbors[i + 6] = NULL;
         }
     }
-#pragma omp parallel for
+//#pragma omp parallel for
     for (int i = 0; i < 8; i++) {
         if (corners[i] != NULL) {
             neighbors[i + 18] = dynamic_cast<FMM*>(corners[i]);
@@ -1421,7 +1365,7 @@ void FMM::pot_to_hydro_grid() {
     for (int n = 0; n < get_local_node_cnt(); n++) {
         p = dynamic_cast<FMM*>(get_local_node(n));
         g = dynamic_cast<HydroGrid*>(get_local_node(n));
-#pragma omp parallel for
+//#pragma omp parallel for
         for (int k = BW - 1; k < GNX - BW + 1; k++) {
             for (int j = BW - 1; j < GNX - BW + 1; j++) {
                 for (int i = BW - 1; i < GNX - BW + 1; i++) {

@@ -154,10 +154,10 @@ Vector<Real, STATE_NF> State::source(const _3Vec& X, Real t) const {
     s[sx_index] += omega * (*this)[sy_index];
     s[sy_index] -= omega * (*this)[sx_index];
 
-    s[sx_index] += rho() * com_correction[0];
-    s[sy_index] += rho() * com_correction[1];
-    s[sz_index] += rho() * com_correction[2];
-    s[lz_index] += rho() * (X[0] * com_correction[1] - X[1] * com_correction[0]);
+ //   s[sx_index] += rho() * com_correction[0];
+  //  s[sy_index] += rho() * com_correction[1];
+   // s[sz_index] += rho() * com_correction[2];
+    //s[lz_index] += rho() * (X[0] * com_correction[1] - X[1] * com_correction[0]);
 #ifdef USE_FMM
  //  s[et_index] += -lz() * omega_dot;
 #else
@@ -166,7 +166,7 @@ Vector<Real, STATE_NF> State::source(const _3Vec& X, Real t) const {
 #ifdef DRIVING
     const Real period = 2.0 * M_PI / omega;
     if (t < DRIVING_TIME * period) {
-        s[lz_index] -= (*this)[sy_index] * DRIVING / period;
+        s[lz_index] -= (*this)[lz_index] * DRIVING / period;
     }
 #endif
     return s;

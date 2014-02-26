@@ -694,6 +694,7 @@ void OctNode::output(grid_output_t* ptr, int nx0, int bw0, Real dtheta) const {
                 MPI_Recv(output_buffer, cnt * nvar, MPI_DOUBLE_PRECISION, proc(), 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE );
             }
         }
+//        printf( "%e\n", dtheta);
         for (int k = bw0; k < nx0 + 1 - bw0; k++) {
             for (int j = bw0; j < nx0 + 1 - bw0; j++) {
                 for (int i = bw0; i < nx0 + 1 - bw0; i++) {
@@ -769,7 +770,7 @@ void OctNode::output(grid_output_t* ptr, int nx0, int bw0, Real dtheta) const {
     }
     for (int i = 0; i < OCT_NCHILD; i++) {
         if (get_child(i) != NULL) {
-            get_child(i)->output(ptr, nx0, bw0);
+            get_child(i)->output(ptr, nx0, bw0,dtheta);
         }
     }
 }
@@ -842,7 +843,7 @@ void OctNode::output(const char* prefix, int counter, int nx0, int bw0, double d
             delete[] coordnames[i];
         }
     } else {
-        output(NULL, nx0, bw0);
+        output(NULL, nx0, bw0,dtheta);
 
     }
     delete[] output_buffer;

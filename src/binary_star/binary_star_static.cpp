@@ -5,7 +5,7 @@
 #ifdef HYDRO_GRAV_GRID
 #ifdef BINARY_STAR
 
-#define CHECKPT_FREQ 10
+#define CHECKPT_FREQ 250
 
 //static Real MA = 1.04;
 //static Real MD = 0.20;
@@ -142,7 +142,7 @@ void BinaryStar::compute_axis(Real dt, Real* theta, Real* theta_dot) {
     Real omega1 = omega0 + dt * State::omega_dot;
     if (MPI_rank() == 0) {
         FILE* fp = fopen("eigen.dat", "at");
-        fprintf(fp, "%.6e %.12e %.12e %.12e %.12e   \n", dynamic_cast<BinaryStar*>(get_root())->get_time(), State::omega, State::omega_dot, *theta, *theta_dot);
+        fprintf(fp, "%.6e %.12e %.12e %.12e %.12e %.12e   \n", dynamic_cast<BinaryStar*>(get_root())->get_time(), State::omega, State::omega_dot, *theta, *theta_dot, dtheta);
         fclose(fp);
     }
     for (int l = 0; l < get_local_node_cnt(); l++) {
@@ -168,8 +168,7 @@ void BinaryStar::adjust_frame(Real dt) {
     Real theta, theta_dot;
     com_dot = compute_Mdot(&com);
     w = 10.0 * State::omega;
-    com_dot = compute_Mdot(&com);
-    Real x, y, z, xdot, ydot, zdot, r, a, tmp;
+    Real x, y, z, xdot, ydot, zdot, r, a, tmp, ax, ay, az;
     x = com[0];
     y = com[1];
     z = com[2];
@@ -178,17 +177,31 @@ void BinaryStar::adjust_frame(Real dt) {
     zdot = com_dot[2];
     r = sqrt(x * x + y * y + z * z);
     tmp = (x * xdot + y * ydot + z * zdot) / r;
-    State::com_correction[0] = -w * (w * r + 2.0 * tmp) * (x / r);
-    State::com_correction[1] = -w * (w * r + 2.0 * tmp) * (y / r);
-    State::com_correction[2] = -w * (w * r + 2.0 * tmp) * (z / r);
-    // State::com_correction[0] = 0.0;
-    // State::com_correction[1] = 0.0;
-    //State::com_correction[2] = 0.0;
+    ax = -w * (w * r + 2.0 * tmp) * (x / r);
+    ay = -w * (w * r + 2.0 * tmp) * (y / r);
+    az = -w * (w * r + 2.0 * tmp) * (z / r);
 
+    for (int l = 0; l < get_local_node_cnt(); l++) {
+        BinaryStar* g = dynamic_cast<BinaryStar*>(get_local_node(l));
+        Real dv = pow(g->get_dx(), 3);
+        for (int k = BW; k < GNX - BW; k++) {
+            for (int j = BW; j < GNX - BW; j++) {
+                for (int i = BW; i < GNX - BW; i++) {
+                    State& u = g->U(i, j, k);
+                    _3Vec x = g->X(i, j, k);
+                    Real R2 = x[0] * x[0] + x[1] * x[1];
+                    u.set_sx(u.sx() + u.rho() * ax * dt);
+                    u.set_sy(u.sy() + u.rho() * ay * dt);
+                    u.set_sz(u.sz() + u.rho() * az * dt);
+                    u.set_lz(u.lz() + u.rho() * (x[0] * ay - x[1] * ax) * dt);
+                }
+            }
+        }
+    }
     if (MPI_rank() == 0) {
         FILE* fp = fopen("adjust.dat", "at");
         fprintf(fp, "%e %e %e %e %e %e %e %e %e %e \n", dynamic_cast<BinaryStar*>(get_root())->get_time(), com[0], com[1], com[2], com_dot[0], com_dot[1],
-                com_dot[2], State::com_correction[0], State::com_correction[1], State::com_correction[2]);
+                com_dot[2], ax, ay, az);
         fclose(fp);
     }
 
@@ -886,8 +899,9 @@ void BinaryStar::read_from_file(const char* str, int* i1, int* i2) {
     MPI_File_read(fh, &State::omega_dot, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
     MPI_File_read(fh, &dtheta, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
     MPI_File_read(fh, &last_dt, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
-    MPI_File_read(fh, &i1, sizeof(int), MPI_BYTE, MPI_STATUS_IGNORE );
-    MPI_File_read(fh, &i2, sizeof(int), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_read(fh, i1, sizeof(int), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_read(fh, i2, sizeof(int), MPI_BYTE, MPI_STATUS_IGNORE );
+    set_origin(O);
     get_root()->read_checkpoint(&fh);
     MPI_File_close(&fh);
 
@@ -1249,7 +1263,6 @@ void BinaryStar::analyze() {
 #define RK2
 
 void BinaryStar::step(Real dt) {
-#ifdef USE_FMM
     Real start_time;
 #ifdef RK2
     Real beta[2] = { 1.0, 1.0 / 2.0 };
@@ -1264,44 +1277,29 @@ void BinaryStar::step(Real dt) {
     Real dtheta0 = dtheta;
     Real omega0 = State::omega;
     for (int i = 0; i < nstep; i++) {
-        adjust_frame(dt);
         HydroGrid::set_beta(beta[i]);
         start_time = MPI_Wtime();
         substep_driver();
+#ifdef USE_FMM
         FMM_solve_dot();
         update();
         dtheta = (dtheta + dt * (State::omega - State::omega0)) * beta[i] + dtheta0 * (1.0 - beta[i]);
         //  State::omega = (State::omega + dt * State::omega_dot) * beta[i] + omega0 * (1.0 - beta[i]);
         FMM_solve();
         account_pot();
+#else
+        solve_poisson();
+#endif
     }
     Real theta, dethea;
+    adjust_frame(dt);
     compute_axis(dt, &theta, &dtheta);
+#ifdef USE_FMM
     FMM_from_children();
+#endif
     pot_to_hydro_grid();
     set_time(get_time() + dt);
 
-#else
-    Real I, Idot;
-    Real start_time;
-    Real beta[3] = {1.0, 0.25, 2.0 / 3.0};
-    HydroGrid::set_dt(dt);
-    Real omega0, omega_dot, dtheta0;
-    dtheta0 = dtheta;
-    omega0 = State::omega;
-    store();
-    for (int i = 0; i < 3; i++) {
-        adjust_frame(dt);
-        HydroGrid::set_beta(beta[i]);
-        start_time = MPI_Wtime();
-        substep_driver();
-        dtheta = (dtheta + dt * State::omega) * beta[i] + dtheta0 * (1.0 - beta[i]);
-        State::omega = (State::omega + dt * State::omega_dot) * beta[i] + omega0 * (1.0 - beta[i]);
-        solve_poisson();
-    }
-    HydroGrid::set_time(HydroGrid::get_time() + dt);
-    //    HydroGrid::boundary_driver();
-#endif
 }
 
 void BinaryStar::run(int argc, char* argv[]) {

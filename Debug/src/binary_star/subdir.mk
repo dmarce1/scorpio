@@ -29,7 +29,7 @@ CPP_DEPS += \
 src/binary_star/%.o: ../src/binary_star/%.cpp
 	@echo 'Building file: $<'
 	@echo 'Invoking: Intel Intel(R) 64 C++ Compiler '
-	mpic++ -g -I"/home/dmarce1/Scorpio/src" -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -c -o "$@" "$<"
+	mpic++ -g -I"/home/dmarce1/Scorpio/src" -openmp-stubs -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -c -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 

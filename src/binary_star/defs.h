@@ -12,8 +12,7 @@
 
 
 #ifdef USE_FMM
-//#define  RANK_ZERO_HAS_ONE_GRID
-#define RANK0_OMP_THREADS 1
+#define  RANK_ZERO_HAS_ONE_GRID
 #endif
 
 #define DRIVING             0.01

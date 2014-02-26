@@ -11,14 +11,13 @@ RM := rm -rf
 -include src/state/subdir.mk
 -include src/sod/subdir.mk
 -include src/sedov/subdir.mk
--include src/poisson/subdir.mk
 -include src/oct_node/subdir.mk
 -include src/multigrid/subdir.mk
 -include src/hydro_grid/subdir.mk
 -include src/hydro_grav_grid/subdir.mk
--include src/hydro_FMM_grid/subdir.mk
 -include src/blast_wave/subdir.mk
 -include src/binary_star/subdir.mk
+-include src/FMM/subdir.mk
 -include src/subdir.mk
 -include subdir.mk
 -include objects.mk
@@ -55,7 +54,7 @@ all: Scorpio
 Scorpio: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: Intel Intel(R) 64 C++ Linker'
-	mpic++  -o "Scorpio" $(OBJS) $(USER_OBJS) $(LIBS)
+	mpic++ -openmp-stubs -openmp-stubs -o "Scorpio" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
