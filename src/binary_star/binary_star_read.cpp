@@ -103,16 +103,16 @@ void BinaryStar::add_data_point(double x, double y, double z, double h, const St
     //   printf("%e %e\n", get_dx(), h);
     BinaryStar::set_max_level_allowed(get_level() + 1);
     if (fabs(get_dx() - h) < 1.0e-3 * h) {
-        int i = int(((x - HydroGrid::xf(0)) / h));
-        int j = int(((y - HydroGrid::yf(0)) / h));
-        int k = int(((z - HydroGrid::zf(0)) / h));
+        int i = int(((x - Hydro::xf(0)) / h));
+        int j = int(((y - Hydro::yf(0)) / h));
+        int k = int(((z - Hydro::zf(0)) / h));
         U(i, j, k) = s;
         set_phi(i + 1 - BW, j + 1 - BW, k + 1 - BW, phi0);
     } else {
         ChildIndex c;
-        c.set_x(int(((x - HydroGrid::xf(0)) / get_dx() / double(GNX / 2))));
-        c.set_y(int(((y - HydroGrid::yf(0)) / get_dx() / double(GNX / 2))));
-        c.set_z(int(((z - HydroGrid::zf(0)) / get_dx() / double(GNX / 2))));
+        c.set_x(int(((x - Hydro::xf(0)) / get_dx() / double(GNX / 2))));
+        c.set_y(int(((y - Hydro::yf(0)) / get_dx() / double(GNX / 2))));
+        c.set_z(int(((z - Hydro::zf(0)) / get_dx() / double(GNX / 2))));
         if (this->get_child(c) == NULL) {
             this->create_child(c);
         }
@@ -153,7 +153,7 @@ void BinaryStar::read_silo(const char* name) {
     printf("%e %e %e \n", O[0], O[1], O[2]);
     //  abort();
     double range = (xmax[0] - xmin[0]) / 2.0;
-    dynamic_cast<HydroGrid*>(get_root())->HydroGrid::mult_dx(range);
+    dynamic_cast<Hydro*>(get_root())->Hydro::mult_dx(range);
     set_origin(O);
 
     for (int i = 0; i < frame.node_count; i++) {

@@ -389,9 +389,9 @@ Real BinaryStar::virial_error() {
                         ek_tot += -(*g)(i, j, k).rot_pot(X) * dv;
                         p_tot += (*g)(i, j, k).pd() * dv;
                         //					w_tot1 += g->get_phi(i, j, k) * (*g)(i, j, k).rho() * 0.5 * dv;
-                        w_tot2 += g->gx(i, j, k) * g->HydroGrid::xc(i) * (*g)(i, j, k).rho() * dv;
-                        w_tot2 += g->gy(i, j, k) * g->HydroGrid::yc(j) * (*g)(i, j, k).rho() * dv;
-                        w_tot2 += g->gz(i, j, k) * g->HydroGrid::zc(k) * (*g)(i, j, k).rho() * dv;
+                        w_tot2 += g->gx(i, j, k) * g->Hydro::xc(i) * (*g)(i, j, k).rho() * dv;
+                        w_tot2 += g->gy(i, j, k) * g->Hydro::yc(j) * (*g)(i, j, k).rho() * dv;
+                        w_tot2 += g->gz(i, j, k) * g->Hydro::zc(k) * (*g)(i, j, k).rho() * dv;
                         //				w_tot3 -= g->gz(i, j, k) * g->gz(i, j, k) * 0.5 * dv / (4.0 * M_PI);
                         //				w_tot3 -= g->gy(i, j, k) * g->gy(i, j, k) * 0.5 * dv / (4.0 * M_PI);
                         //				w_tot3 -= g->gx(i, j, k) * g->gx(i, j, k) * 0.5 * dv / (4.0 * M_PI);
@@ -569,9 +569,9 @@ void BinaryStar::find_mass(int frac, Real* mass, _3Vec* com_ptr) {
                     if (!g->zone_is_refined(i, j, k)) {
                         dm = dv * (*g)(i, j, k).frac(frac);
                         M += dm;
-                        com[0] += g->HydroGrid::X(i, j, k)[0] * dm;
-                        com[1] += g->HydroGrid::X(i, j, k)[1] * dm;
-                        com[2] += g->HydroGrid::X(i, j, k)[2] * dm;
+                        com[0] += g->Hydro::X(i, j, k)[0] * dm;
+                        com[1] += g->Hydro::X(i, j, k)[1] * dm;
+                        com[2] += g->Hydro::X(i, j, k)[2] * dm;
                     }
                 }
             }
@@ -649,8 +649,8 @@ void BinaryStar::scf_run(int argc, char* argv[]) {
                 for (int j = BW; j < GNX - BW; j++) {
                     for (int i = BW; i < GNX - BW; i++) {
                         if (g0->zone_is_refined(i, j, k)) {
-                            if (fabs(g0->HydroGrid::zc(k)) < g0->get_dx() / 2.0 && fabs(g0->HydroGrid::yc(j)) < g0->get_dx() / 2.0) {
-                                if (fabs(g0->HydroGrid::xc(i) - xc_d) < g0->get_dx() / 2.0) {
+                            if (fabs(g0->Hydro::zc(k)) < g0->get_dx() / 2.0 && fabs(g0->Hydro::yc(j)) < g0->get_dx() / 2.0) {
+                                if (fabs(g0->Hydro::xc(i) - xc_d) < g0->get_dx() / 2.0) {
                                     rho0_d = (*g0)(i, j, k).rho();
                                 }
                             }
@@ -676,7 +676,7 @@ void BinaryStar::scf_run(int argc, char* argv[]) {
         XC_d[0] = xd;
         XC_a[0] = xa;
         Real verr;
-        Real min_dx = HydroGrid::h0 / Real(1 << get_max_level_allowed());
+        Real min_dx = Hydro::h0 / Real(1 << get_max_level_allowed());
         if (iter == 0) {
             verr = dynamic_cast<BinaryStar*>(get_root())->virial_error();
         }
@@ -696,13 +696,13 @@ void BinaryStar::scf_run(int argc, char* argv[]) {
             for (int k = BW; k < GNX - BW; k++) {
                 for (int j = BW; j < GNX - BW; j++) {
                     for (int i = BW; i < GNX - BW; i++) {
-                        Real R2 = g0->HydroGrid::xc(i) * g0->HydroGrid::xc(i) + g0->HydroGrid::yc(j) * g0->HydroGrid::yc(j);
+                        Real R2 = g0->Hydro::xc(i) * g0->Hydro::xc(i) + g0->Hydro::yc(j) * g0->Hydro::yc(j);
                         Real phi_eff = g0->get_phi(i - o, j - o, k - o) - 0.5 * o2 * R2;
-                        if ((g0->HydroGrid::xc(i) >= xm_d)
+                        if ((g0->Hydro::xc(i) >= xm_d)
                                 && (g0->geff(i, j, k).dot(g0->X(i, j, k) - XC_d) < 0.0 || (g0->X(i, j, k) - XC_d).mag() < 2.0 * min_dx) && (phi_eff < C_d)) {
                             h = max(C_d - phi_eff, 0.0);
                             new_rho = B * pow(pow(h * Bover8A + 1.0, 2) - 1.0, 1.5);
-                        } else if ((g0->HydroGrid::xc(i) <= xm_d)
+                        } else if ((g0->Hydro::xc(i) <= xm_d)
                                 && (g0->geff(i, j, k).dot(g0->X(i, j, k) - XC_a) < 0.0 || (g0->X(i, j, k) - XC_a).mag() < 2.0 * min_dx) && (phi_eff < C_a)) {
                             h = max(C_a - phi_eff, 0.0);
                             new_rho = B * pow(pow(h * Bover8A + 1.0, 2) - 1.0, 1.5);
@@ -713,7 +713,7 @@ void BinaryStar::scf_run(int argc, char* argv[]) {
                         (*g0)(i, j, k)[State::d_index] *= 1.0 - w;
                         (*g0)(i, j, k)[State::d_index] += w * new_rho;
                         (*g0)(i, j, k)[State::d_index] = (*g0)(i, j, k).rho();
-                        if (g0->HydroGrid::xc(i) > xm_d) {
+                        if (g0->Hydro::xc(i) > xm_d) {
                             (*g0)(i, j, k).set_frac(1, max((*g0)(i, j, k).rho(), State::rho_floor * 0.5));
                             (*g0)(i, j, k).set_frac(0, State::rho_floor * 0.5);
                         } else {
@@ -780,14 +780,14 @@ void BinaryStar::scf_run(int argc, char* argv[]) {
     }
     omega *= 1.0 / s;
     State::set_omega(omega);
-    dynamic_cast<HydroGrid*>(get_root())->HydroGrid::mult_dx(cm);
-    Real dxmin = HydroGrid::h0 / Real(1 << get_max_level_allowed());
+    dynamic_cast<Hydro*>(get_root())->Hydro::mult_dx(cm);
+    Real dxmin = Hydro::h0 / Real(1 << get_max_level_allowed());
     for (int l = 0; l < get_local_node_cnt(); l++) {
         g0 = dynamic_cast<BinaryStar*>(get_local_node(l));
         for (int k = BW; k < GNX - BW; k++) {
             for (int j = BW; j < GNX - BW; j++) {
                 for (int i = BW; i < GNX - BW; i++) {
-                    if (g0->HydroGrid::xc(i) < xm_d) {
+                    if (g0->Hydro::xc(i) < xm_d) {
                         (*g0)(i, j, k)[State::frac_index + 0] = (*g0)(i, j, k).rho() - State::rho_floor / 2.0;
                         (*g0)(i, j, k)[State::frac_index + 1] = State::rho_floor / 2.0;
                     } else {
@@ -795,11 +795,11 @@ void BinaryStar::scf_run(int argc, char* argv[]) {
                         (*g0)(i, j, k)[State::frac_index + 0] = State::rho_floor / 2.0;
                     }
                     Real ei, ek, sy, sx, lz;
-                    Real x = g0->HydroGrid::xc(i);
-                    Real y = g0->HydroGrid::yc(j);
+                    Real x = g0->Hydro::xc(i);
+                    Real y = g0->Hydro::yc(j);
                     Real R2 = x * x + y * y;
-                    sx = -(*g0)(i, j, k).rho() * omega * g0->HydroGrid::yc(j);
-                    sy = +(*g0)(i, j, k).rho() * omega * g0->HydroGrid::xc(i);
+                    sx = -(*g0)(i, j, k).rho() * omega * g0->Hydro::yc(j);
+                    sy = +(*g0)(i, j, k).rho() * omega * g0->Hydro::xc(i);
                     lz = (*g0)(i, j, k).rho() * R2 * omega;
                     if ((*g0)(i, j, k).rho() < 10.0 * State::rho_floor) {
                         ei = -g0->get_phi(i, j, k) / 100.0;
@@ -982,11 +982,11 @@ void BinaryStar::analyze() {
         g = dynamic_cast<BinaryStar*>(get_local_node(m));
         dv = pow(g->get_dx(), 3);
         for (int k = BW; k < GNX - BW; k++) {
-            if (g->HydroGrid::zc(k) < 0.0 || g->HydroGrid::zc(k) > g->get_dx()) {
+            if (g->Hydro::zc(k) < 0.0 || g->Hydro::zc(k) > g->get_dx()) {
                 continue;
             }
             for (int j = BW; j < GNX - BW; j++) {
-                if (g->HydroGrid::yc(j) < 0.0 || g->HydroGrid::yc(j) > g->get_dx()) {
+                if (g->Hydro::yc(j) < 0.0 || g->Hydro::yc(j) > g->get_dx()) {
                     continue;
                 }
                 for (int i = BW; i < GNX - BW; i++) {
@@ -1017,17 +1017,17 @@ void BinaryStar::analyze() {
         g = dynamic_cast<BinaryStar*>(get_local_node(m));
         dv = pow(g->get_dx(), 3);
         for (int k = BW; k < GNX - BW; k++) {
-            if (g->HydroGrid::zc(k) < 0.0 || g->HydroGrid::zc(k) > g->get_dx()) {
+            if (g->Hydro::zc(k) < 0.0 || g->Hydro::zc(k) > g->get_dx()) {
                 continue;
             }
             k0 = k + 1 - BW;
             for (int j = BW; j < GNX - BW; j++) {
-                if (g->HydroGrid::yc(j) < 0.0 || g->HydroGrid::yc(j) > g->get_dx()) {
+                if (g->Hydro::yc(j) < 0.0 || g->Hydro::yc(j) > g->get_dx()) {
                     continue;
                 }
                 j0 = j + 1 - BW;
                 for (int i = BW; i < GNX - BW; i++) {
-                    if (g->HydroGrid::xc(i) < rho_max_a_loc[0] || g->HydroGrid::xc(i) > rho_max_d_loc[0]) {
+                    if (g->Hydro::xc(i) < rho_max_a_loc[0] || g->Hydro::xc(i) > rho_max_d_loc[0]) {
                         continue;
                     }
                     i0 = i + 1 - BW;
@@ -1132,13 +1132,13 @@ void BinaryStar::step(Real dt) {
     Real beta[3] = {1.0, 0.25, 2.0 / 3.0};
     const int nstep = 2;
 #endif
-    HydroGrid::set_dt(dt);
+    Hydro::set_dt(dt);
     store();
     store_pot();
     Real dtheta0 = dtheta;
     Real omega0 = State::omega;
     for (int i = 0; i < nstep; i++) {
-        HydroGrid::set_beta(beta[i]);
+        Hydro::set_beta(beta[i]);
         start_time = MPI_Wtime();
         substep_driver();
         FMM_solve_dot();
@@ -1190,7 +1190,7 @@ void BinaryStar::run(int argc, char* argv[]) {
         return;
     } else if (read_parameter(argc, argv, "analyze", restart_name,1024)) {
         read_silo(restart_name);
-        HydroGrid::redistribute_grids();
+        Hydro::redistribute_grids();
         analyze();
         return;
     } else if (read_parameter(argc, argv, "restart", restart_name, 1024)) {
@@ -1296,9 +1296,9 @@ void BinaryStar::run(int argc, char* argv[]) {
         if (MPI_rank() == 0) {
             nnodes = OctNode::get_node_cnt();
             FILE* fp = fopen("dt.dat", "at");
-            fprintf(fp, "%e %e %i\n", HydroGrid::get_time(), dt, nnodes);
+            fprintf(fp, "%e %e %i\n", Hydro::get_time(), dt, nnodes);
             fclose(fp);
-            printf("step=%i t=%e dt=%e lmax=%i ngrids=%i step_time=%e s refine_floor=%e", step_cnt, HydroGrid::get_time(), dt, OctNode::get_max_level(), nnodes,
+            printf("step=%i t=%e dt=%e lmax=%i ngrids=%i step_time=%e s refine_floor=%e", step_cnt, Hydro::get_time(), dt, OctNode::get_max_level(), nnodes,
                     MPI_Wtime() - time_start, BinaryStar::refine_floor);
         }
         time_start = MPI_Wtime();
@@ -1306,7 +1306,7 @@ void BinaryStar::run(int argc, char* argv[]) {
             if (MPI_rank() == 0) {
                 printf("*");
             }
-            get_root()->output("./output/X", nint(HydroGrid::get_time() / ofreq), GNX, BW, dtheta);
+            get_root()->output("./output/X", nint(Hydro::get_time() / ofreq), GNX, BW, dtheta);
         }
         if (MPI_rank() == 0) {
             printf("\n");
@@ -1340,7 +1340,7 @@ void BinaryStar::integrate_conserved_variables(Vector<Real, STATE_NF>* sum_ptr) 
                     if (!g->zone_is_refined(i, j, k)) {
                         for (int l = 0; l < STATE_NF; l++) {
                             if (l == State::et_index) {
-                                my_sum[l] += (*g)(i, j, k).conserved_energy(g->HydroGrid::X(i, j, k)) * dv;
+                                my_sum[l] += (*g)(i, j, k).conserved_energy(g->Hydro::X(i, j, k)) * dv;
                             } else {
                                 my_sum[l] += (*g)(i, j, k)[l] * dv;
                             }
@@ -1437,12 +1437,12 @@ void BinaryStar::find_phimins(Real* phi_min_a, Real* a_x, Real* phi_min_d, Real*
                     if ((*g)(i, j, k).frac(0) < (*g)(i, j, k).frac(1)) {
                         if ((*g)(i, j, k).phi_eff() < pmd) {
                             pmd = (*g)(i, j, k).phi_eff();
-                            xd = g->HydroGrid::xc(i);
+                            xd = g->Hydro::xc(i);
                         }
                     } else {
                         if ((*g)(i, j, k).phi_eff() < pma) {
                             pma = (*g)(i, j, k).phi_eff();
-                            xa = g->HydroGrid::xc(i);
+                            xa = g->Hydro::xc(i);
                         }
                     }
                 }
@@ -1475,7 +1475,7 @@ Real BinaryStar::find_acc_com() {
             for (j = BW; j < GNX - BW; j++) {
                 for (i = BW; i < GNX - BW; i++) {
                     dm = (*g)(i, j, k).frac(0) * dv;
-                    com += g->HydroGrid::xc(i) * dm;
+                    com += g->Hydro::xc(i) * dm;
                     mtot += dm;
                 }
             }
@@ -1501,7 +1501,7 @@ void BinaryStar::next_omega(Real Kd) {
         for (int k = BW; k < GNX - BW; k++) {
             for (int j = BW; j < GNX - BW; j++) {
                 for (int i = BW; i < GNX - BW; i++) {
-                    if (!g->zone_is_refined(i, j, k) && g->HydroGrid::xc(i) < 0.0) {
+                    if (!g->zone_is_refined(i, j, k) && g->Hydro::xc(i) < 0.0) {
                         d = (*g)(i, j, k).rho();
                         dp = (*g)(i + 1, j, k).rho();
                         dm = (*g)(i - 1, j, k).rho();
@@ -1509,7 +1509,7 @@ void BinaryStar::next_omega(Real Kd) {
                         hm = Kd * (n + 1.0) * pow(max(dm, 0.0), 1.0 / n);
                         phip = g->get_phi(i - o + 1, j - o, k - o);
                         phim = g->get_phi(i - o - 1, j - o, k - o);
-                        tmp = d * g->HydroGrid::xc(i) * dv;
+                        tmp = d * g->Hydro::xc(i) * dv;
                         ftot += d * ((hp - hm) + (phip - phim)) / (2.0 * g->get_dx()) * dv;
                         frot += tmp;
                     }
@@ -1546,7 +1546,7 @@ void BinaryStar::find_l(Real m1_x, Real m2_x, Real* l1_phi, Real* l1_x, int lnum
             j = k = BW;
             for (i = BW; i < GNX - BW; i++) {
                 if (!g->zone_is_refined(i, j, k)) {
-                    x = g->HydroGrid::xc(i);
+                    x = g->Hydro::xc(i);
                     if (lnum == 1) {
                         test = x < m2_x && x > m1_x;
                     } else {

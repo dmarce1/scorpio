@@ -8,7 +8,7 @@
 #ifndef GRID_BLAST_WAVE_H_
 #define GRID_BLAST_WAVE_H_
 
-#include "../hydro_grid/hydro_grid.h"
+#include "../hydro/hydro.h"
 #ifdef BLAST_WAVE
 
 class GridBlastWave:

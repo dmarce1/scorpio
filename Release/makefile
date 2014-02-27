@@ -12,7 +12,7 @@ RM := rm -rf
 -include src/sod/subdir.mk
 -include src/sedov/subdir.mk
 -include src/oct_node/subdir.mk
--include src/hydro_grid/subdir.mk
+-include src/hydro/subdir.mk
 -include src/blast_wave/subdir.mk
 -include src/binary_star/subdir.mk
 -include src/FMM/subdir.mk

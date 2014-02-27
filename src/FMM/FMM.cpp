@@ -778,7 +778,7 @@ FMM* FMM::new_octnode() const {
 }
 
 void FMM::allocate_arrays() {
-    HydroGrid::allocate_arrays();
+    Hydro::allocate_arrays();
     Xp.allocate();
     poles.allocate();
     poles_dot.allocate();
@@ -790,7 +790,7 @@ void FMM::allocate_arrays() {
 }
 
 void FMM::deallocate_arrays() {
-    HydroGrid::deallocate_arrays();
+    Hydro::deallocate_arrays();
     Xp.deallocate();
     poles.deallocate();
     L.deallocate();
@@ -921,12 +921,12 @@ void FMM::step(Real dt) {
     int nsteps = 3;
     Real beta[3] = {1.0, 0.25, 2.0 / 3.0};
 #endif
-    HydroGrid::set_dt(dt);
+    Hydro::set_dt(dt);
     store();
     store_pot();
     for (int i = 0; i < nsteps; i++) {
 
-        HydroGrid::set_beta(beta[i]);
+        Hydro::set_beta(beta[i]);
         start_time = MPI_Wtime();
         substep_driver();
         FMM_solve_dot();
@@ -940,7 +940,7 @@ void FMM::step(Real dt) {
 }
 
 void FMM::compute_update(int dir) {
-    HydroGrid::inc_instruction_pointer(dir);
+    Hydro::inc_instruction_pointer(dir);
 }
 
 bool FMM::check_for_refine() {
@@ -950,7 +950,7 @@ bool FMM::check_for_refine() {
     rc = OctNode::check_for_refine();
     if (rc) {
         pot_to_hydro_grid();
-        HydroGrid::redistribute_grids();
+        Hydro::redistribute_grids();
         FMM_solve();
         FMM_from_children();
     }
@@ -1071,9 +1071,9 @@ _3Vec FMM::system_com() {
 }
 
 void FMM::to_conserved_energy() {
-    HydroGrid* g0;
+    Hydro* g0;
     for (int n = 0; n < get_local_node_cnt(); n++) {
-        g0 = dynamic_cast<HydroGrid*>(get_local_node(n));
+        g0 = dynamic_cast<Hydro*>(get_local_node(n));
 //#pragma omp parallel for collapse(2)
         for (int k = BW - 1; k < GNX - BW + 1; k++) {
             for (int j = BW - 1; j < GNX - BW + 1; j++) {
@@ -1086,9 +1086,9 @@ void FMM::to_conserved_energy() {
 }
 
 void FMM::from_conserved_energy() {
-    HydroGrid* g0;
+    Hydro* g0;
     for (int n = 0; n < get_local_node_cnt(); n++) {
-        g0 = dynamic_cast<HydroGrid*>(get_local_node(n));
+        g0 = dynamic_cast<Hydro*>(get_local_node(n));
 //#pragma omp parallel for collapse(2)
         for (int k = BW - 1; k < GNX - BW + 1; k++) {
             for (int j = BW - 1; j < GNX - BW + 1; j++) {
@@ -1364,11 +1364,11 @@ Real FMM::g_lz(int i, int j, int k) const {
 
 void FMM::pot_to_hydro_grid() {
     FMM* p;
-    HydroGrid* g;
+    Hydro* g;
     Real pot;
     for (int n = 0; n < get_local_node_cnt(); n++) {
         p = dynamic_cast<FMM*>(get_local_node(n));
-        g = dynamic_cast<HydroGrid*>(get_local_node(n));
+        g = dynamic_cast<Hydro*>(get_local_node(n));
 //#pragma omp parallel for
         for (int k = BW - 1; k < GNX - BW + 1; k++) {
             for (int j = BW - 1; j < GNX - BW + 1; j++) {

@@ -14,7 +14,7 @@
 
 #define USE_FMM_ANGULAR
 
-#include "../hydro_grid/hydro_grid.h"
+#include "../hydro/hydro.h"
 
 #include "expansion.h"
 
@@ -50,7 +50,7 @@ typedef struct {
 	_3Vec g;
 } _4force_t;
 
-class FMM: public HydroGrid {
+class FMM: public Hydro {
 public:
 	Array3d<taylor_t, FNX, FNX, FNX> L;
 private:

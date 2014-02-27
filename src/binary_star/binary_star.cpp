@@ -97,7 +97,7 @@ void BinaryStar::physical_boundary(int dir) {
         }
     }
 
-    HydroGrid::inc_instruction_pointer(dir);
+    Hydro::inc_instruction_pointer(dir);
 }
 
 BinaryStar::BinaryStar() {
@@ -169,7 +169,7 @@ void BinaryStar::initialize() {
         binary_parameters_compute(&bparam);
         State::rho_floor = 1.0e-12 * bparam.rho1;
         refine_floor = 1.0e-4 * bparam.rho2;
-        dynamic_cast<HydroGrid*>(get_root())->HydroGrid::mult_dx(bparam.a * 2.0);
+        dynamic_cast<Hydro*>(get_root())->Hydro::mult_dx(bparam.a * 2.0);
         State::set_omega(bparam.omega);
     }
     for (int k = BW - 1; k < GNX - BW + 1; k++) {

@@ -36,7 +36,7 @@ src/state \
 src/sod \
 src/sedov \
 src/oct_node \
-src/hydro_grid \
+src/hydro \
 src/blast_wave \
 src/binary_star \
 src/FMM \

@@ -68,12 +68,12 @@ public:
         g[1] = gy(i, j, k);
         g[2] = gz(i, j, k);
         Real O2 = pow(State::get_omega(), 2);
-        g[0] += HydroGrid::xc(i) * O2;
-        g[1] += HydroGrid::yc(j) * O2;
+        g[0] += Hydro::xc(i) * O2;
+        g[1] += Hydro::yc(j) * O2;
         return g;
     }
     Real glz(int i, int j, int k) const {
-        return HydroGrid::xc(i) * gy(i, j, k) - HydroGrid::yc(j) * gx(i, j, k);
+        return Hydro::xc(i) * gy(i, j, k) - Hydro::yc(j) * gx(i, j, k);
     }
     static void integrate_conserved_variables(Vector<Real, STATE_NF>*);
     static void diagnostics(Real);

@@ -8,7 +8,7 @@
 #ifndef GRID_SOD_H_
 #define GRID_SOD_H_
 
-#include "hydro_grid/hydro_grid.h"
+#include "hydro/hydro.h"
 
 #ifdef SOD
 
