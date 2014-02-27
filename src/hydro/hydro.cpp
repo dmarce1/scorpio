@@ -10,7 +10,6 @@
 #include "../indexer3d.h"
 #include "../reconstruct.h"
 
-#ifdef USE_HYDRO_GRID
 
 void Hydro::write(MPI_File* fh) {
     MPI_File_write(*fh, &dx, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
@@ -967,5 +966,3 @@ void Hydro::physical_boundary(int dir) {
     }
     inc_instruction_pointer(dir);
 }
-
-#endif

@@ -6,7 +6,6 @@
  */
 
 #include "FMM.h"
-#ifdef USE_FMM
 #include "../tag.h"
 #include <mpi.h>
 #include <omp.h>
@@ -1629,5 +1628,3 @@ void FMM::MPI_datatypes_init() {
         initialized = true;
     }
 }
-
-#endif

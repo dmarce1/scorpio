@@ -3,7 +3,6 @@
 #include "../virtual_process.h"
 #include "../defs.h"
 
-#ifdef USE_HYDRO_GRID
 
 MPI_Datatype Hydro::MPI_interior_t;
 MPI_Datatype Hydro::MPI_state_t;
@@ -344,4 +343,3 @@ void Hydro::mpi_datatypes_initialize() {
         initialized = true;
     }
 }
-#endif

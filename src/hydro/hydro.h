@@ -6,18 +6,10 @@
 #include "../virtual_process.h"
 #include <stdlib.h>
 
-#ifdef USE_HYDRO_GRID
 
 #define GRID_CS_SIZE 18
 #define GRID_ES_SIZE 14
 
-#ifndef GNX
-#define GNX 8
-#endif
-
-#ifndef BW
-#define BW 2
-#endif
 
 class Hydro: public virtual OctNode, public VirtualProcess<Hydro> {
 protected:
@@ -187,6 +179,5 @@ public:
     virtual ~Hydro();
 };
 
-#endif
 
 #endif /* GRID_NODE_H_ */
