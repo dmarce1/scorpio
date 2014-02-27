@@ -43,6 +43,16 @@ FMM::ifunc_t FMM::cs_dot[FSTAGE + 1] = { &FMM::moments_recv_dot, &FMM::moments_r
         &FMM::expansion_recv_wait_dot, &FMM::expansion_send_dot, &FMM::expansion_send_wait, &FMM::null };
 FMM::ifunc_t FMM::cs_children[5] = { &FMM::_4force_recv, &FMM::_4force_recv_wait, &FMM::_4force_send, &FMM::_4force_send_wait, &FMM::null };
 
+FMM::ifunc_t FMM::fmmhydro[40] = { &Hydro::flux_bnd_comm, &Hydro::physical_boundary, &Hydro::flux_bnd_recv_wait, &Hydro::amr_bnd_send,
+        &Hydro::recv_from_children_dt, &Hydro::flux_compute, &Hydro::recv_from_children_dt_wait, &Hydro::amr_bnd_send_wait, &Hydro::flux_cf_adjust_recv,
+        &Hydro::flux_cf_adjust_recv_wait, &Hydro::flux_cf_adjust_send, &Hydro::compute_dudt, &FMM::moments_recv_dot, &FMM::moments_recv_wait,
+        &FMM::moments_send_dot, &FMM::moments_communicate_all_dot, &FMM::moments_communicate_wait_all, &FMM::expansion_recv_dot, &FMM::compute_interactions_dot,
+        &FMM::expansion_recv_wait_dot, &FMM::expansion_send_dot, &FMM::compute_gravity_update, &FMM::moments_recv, &FMM::moments_recv_wait, &FMM::moments_send,
+        &FMM::moments_communicate_all, &FMM::moments_communicate_wait_all, &FMM::expansion_recv, &FMM::compute_interactions, &FMM::expansion_recv_wait,
+        &FMM::expansion_send, &FMM::copy_pot_to_hydro_grid, &FMM::apply_pot_change, &Hydro::inject_from_children_recv, &Hydro::inject_from_children_recv_wait,
+        &Hydro::flux_cf_adjust_send_wait, &Hydro::inject_from_children_send, &FMM::moments_send_wait_dot, &FMM::moments_send_wait,
+        &Hydro::inject_from_children_send_wait, };
+
 MPI_Datatype FMM::MPI_multipole_t;
 MPI_Datatype FMM::MPI_send_bnd_t[26];
 MPI_Datatype FMM::MPI_recv_bnd_t[26];
@@ -281,13 +291,14 @@ void FMM::moments_communicate_all(int) {
         neighbor = neighbors[dir];
         if (neighbor == NULL) {
             recv_request[dir] = MPI_REQUEST_NULL;
-            send_request[dir] = MPI_REQUEST_NULL;
         } else {
             assert(dir==face_id[dir]);
             tag_send = tag_gen(TAG_FMM_BOUND, neighbor->get_id(), face_opp_id[dir]);
             tag_recv = tag_gen(TAG_FMM_BOUND, get_id(), face_id[dir]);
-            MPI_Isend(poles.ptr(), 1, MPI_send_bnd_t[dir], neighbor->proc(), tag_send, MPI_COMM_WORLD, send_request + dir);
+            MPI_Request req;
+            MPI_Isend(poles.ptr(), 1, MPI_send_bnd_t[dir], neighbor->proc(), tag_send, MPI_COMM_WORLD, &req);
             MPI_Irecv(poles.ptr(), 1, MPI_recv_bnd_t[dir], neighbor->proc(), tag_recv, MPI_COMM_WORLD, recv_request + dir);
+            MPI_Request_free(&req);
         }
     }
     inc_instruction_pointer();
@@ -301,24 +312,24 @@ void FMM::moments_communicate_all_dot(int) {
         neighbor = neighbors[dir];
         if (neighbor == NULL) {
             recv_request[dir] = MPI_REQUEST_NULL;
-            send_request[dir] = MPI_REQUEST_NULL;
         } else {
             assert(dir==face_id[dir]);
             tag_send = tag_gen(TAG_FMM_BOUND, neighbor->get_id(), face_opp_id[dir]);
             tag_recv = tag_gen(TAG_FMM_BOUND, get_id(), face_id[dir]);
-            MPI_Isend(poles_dot.ptr(), 1, MPI_send_bnd_dot_t[dir], neighbor->proc(), tag_send, MPI_COMM_WORLD, send_request + dir);
+            MPI_Request req;
+            MPI_Isend(poles_dot.ptr(), 1, MPI_send_bnd_dot_t[dir], neighbor->proc(), tag_send, MPI_COMM_WORLD, &req);
             MPI_Irecv(poles_dot.ptr(), 1, MPI_recv_bnd_dot_t[dir], neighbor->proc(), tag_recv, MPI_COMM_WORLD, recv_request + dir);
+            MPI_Request_free(&req);
         }
     }
     inc_instruction_pointer();
 }
 
 void FMM::moments_communicate_wait_all(int) {
-    int flag_recv, flag_send;
+    int flag_recv;
     bool ready;
     MPI_Testall(26, recv_request, &flag_recv, MPI_STATUS_IGNORE );
-    MPI_Testall(26, send_request, &flag_send, MPI_STATUS_IGNORE );
-    ready = flag_recv && flag_send;
+    ready = flag_recv;
     if (ready) {
         inc_instruction_pointer();
     }
@@ -574,7 +585,9 @@ void FMM::expansion_send(int) {
             }
         } else {
             tag = tag_gen(TAG_FMM_EXPANSION, child->get_id(), ci);
-            MPI_Isend(L.ptr(), 1, MPI_comm_taylor_t[ci], child->proc(), tag, MPI_COMM_WORLD, send_request + ci);
+            MPI_Request req;
+            MPI_Isend(L.ptr(), 1, MPI_comm_taylor_t[ci], child->proc(), tag, MPI_COMM_WORLD, &req);
+            MPI_Request_free(&req);
         }
     }
     inc_instruction_pointer();
@@ -638,11 +651,11 @@ void FMM::expansion_send_dot(int) {
     int tag;
     for (int ci = 0; ci < 8; ci++) {
         child = dynamic_cast<FMM*>(get_child(ci));
-        if (child == NULL) {
-            send_request[ci] = MPI_REQUEST_NULL;
-        } else {
+        if (child != NULL) {
             tag = tag_gen(TAG_FMM_EXPANSION, child->get_id(), ci);
-            MPI_Isend(L_dot.ptr(), 1, MPI_comm_taylor_dot_t[ci], child->proc(), tag, MPI_COMM_WORLD, send_request + ci);
+            MPI_Request req;
+            MPI_Isend(L_dot.ptr(), 1, MPI_comm_taylor_dot_t[ci], child->proc(), tag, MPI_COMM_WORLD, &req);
+            MPI_Request_free(&req);
         }
     }
     inc_instruction_pointer();
@@ -650,11 +663,7 @@ void FMM::expansion_send_dot(int) {
 }
 
 void FMM::expansion_send_wait(int) {
-    int flag;
-    MPI_Testall(8, send_request, &flag, MPI_STATUS_IGNORE );
-    if (flag) {
-        inc_instruction_pointer();
-    }
+    inc_instruction_pointer();
 }
 
 void FMM::FMM_solve() {
@@ -664,8 +673,7 @@ void FMM::FMM_solve() {
     FMM** list = new FMM*[get_local_node_cnt()];
     for (int i = 0; i < get_local_node_cnt(); i++) {
         list[i] = dynamic_cast<FMM*>(get_local_node(i));
-        list[i]->ip = new int[1];
-        list[i]->ip[0] = 0;
+        list[i]->ip = 0;
     }
     int last_ip;
     bool done;
@@ -674,24 +682,77 @@ void FMM::FMM_solve() {
     do {
         done = true;
         for (int i = 0; i < nprocs; i++) {
-            if (list[i]->ip[0] < FSTAGE) {
+            if (list[i]->ip < FSTAGE) {
                 //			do {
                 //	printf("%i %i %i\n", list[i]->get_id(), list[i]->get_level(), list[i]->ip[0]);
-                last_ip = list[i]->ip[0];
-                (list[i]->*cs[list[i]->ip[0]])(0);
+                last_ip = list[i]->ip;
+                (list[i]->*cs[list[i]->ip])(0);
                 //		} while (last_ip != list[i]->ip[0] && list[i]->ip[0] <= FSTAGE);
-                if (list[i]->ip[0] <= FSTAGE) {
+                if (list[i]->ip <= FSTAGE) {
                     done = false;
                 }
             }
         }
     } while (!done);
-    for (int i = 0; i < nprocs; i++) {
-        delete[] list[i]->ip;
-    }
 
     delete[] list;
     pot_to_hydro_grid();
+}
+
+Real FMM::substep_driver() {
+    // MPI_rank() ? 0 : printf("Starting substep driver\n");
+    DFO = Vector<Real, STATE_NF>(0.0);
+    MPI_datatypes_init();
+    FMM** list = new FMM*[get_local_node_cnt()];
+    for (int i = 0; i < get_local_node_cnt(); i++) {
+        list[i] = dynamic_cast<FMM*>(get_local_node(i));
+        list[i]->ip = 0;
+    }
+    int last_ip;
+    bool done;
+    const int nprocs = get_local_node_cnt();
+
+    if (_beta == 1.0) {
+        do {
+            done = true;
+            for (int i = 0; i < nprocs; i++) {
+                if (list[i]->ip != 21) {
+                    (list[i]->*fmmhydro[list[i]->ip])(0);
+                    if (list[i]->ip != 21) {
+                        done = false;
+                    }
+                }
+            }
+        } while (!done);
+        MPI_Bcast(&root_dt, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD );
+        Hydro::set_dt(root_dt);
+
+    }
+    do {
+        done = true;
+        for (int i = 0; i < nprocs; i++) {
+            if (list[i]->ip < 40) {
+                (list[i]->*fmmhydro[list[i]->ip])(0);
+                if (list[i]->ip < 40) {
+                    done = false;
+                }
+            }
+        }
+    } while (!done);
+    delete[] list;
+    Real tmp[STATE_NF];
+    for (int i = 0; i < STATE_NF; i++) {
+        tmp[i] = DFO[i];
+    }
+    Real tmp2[STATE_NF];
+    MPI_Allreduce(tmp, tmp2, STATE_NF, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD );
+    for (int i = 0; i < STATE_NF; i++) {
+        DFO[i] = tmp2[i];
+    }
+    DFO[State::et_index] += State::omega * DFO[State::lz_index] + DFO[State::pot_index];
+    FO = (FO + DFO * _dt) * _beta + FO0 * (1.0 - _beta);
+//    MPI_rank() ? 0 : printf("Ending substep driver\n");
+    return root_dt;
 }
 
 void FMM::FMM_from_children() {
@@ -701,8 +762,7 @@ void FMM::FMM_from_children() {
     FMM** list = new FMM*[get_local_node_cnt()];
     for (int i = 0; i < get_local_node_cnt(); i++) {
         list[i] = dynamic_cast<FMM*>(get_local_node(i));
-        list[i]->ip = new int[1];
-        list[i]->ip[0] = 0;
+        list[i]->ip = 0;
     }
     int last_ip;
     bool done;
@@ -711,18 +771,15 @@ void FMM::FMM_from_children() {
     do {
         done = true;
         for (int i = 0; i < nprocs; i++) {
-            if (list[i]->ip[0] < 4) {
-                last_ip = list[i]->ip[0];
-                (list[i]->*cs_children[list[i]->ip[0]])(0);
-                if (list[i]->ip[0] <= 4) {
+            if (list[i]->ip < 4) {
+                last_ip = list[i]->ip;
+                (list[i]->*cs_children[list[i]->ip])(0);
+                if (list[i]->ip <= 4) {
                     done = false;
                 }
             }
         }
     } while (!done);
-    for (int i = 0; i < nprocs; i++) {
-        delete[] list[i]->ip;
-    }
 
     delete[] list;
     pot_to_hydro_grid();
@@ -735,8 +792,7 @@ void FMM::FMM_solve_dot() {
     FMM** list = new FMM*[get_local_node_cnt()];
     for (int i = 0; i < get_local_node_cnt(); i++) {
         list[i] = dynamic_cast<FMM*>(get_local_node(i));
-        list[i]->ip = new int[1];
-        list[i]->ip[0] = 0;
+        list[i]->ip = 0;
     }
     int last_ip;
     bool done;
@@ -745,27 +801,24 @@ void FMM::FMM_solve_dot() {
     do {
         done = true;
         for (int i = 0; i < nprocs; i++) {
-            if (list[i]->ip[0] < FSTAGE) {
+            if (list[i]->ip < FSTAGE) {
                 //			do {
                 //	printf("%i %i %i\n", list[i]->get_id(), list[i]->get_level(), list[i]->ip[0]);
-                last_ip = list[i]->ip[0];
-                (list[i]->*cs_dot[list[i]->ip[0]])(0);
+                last_ip = list[i]->ip;
+                (list[i]->*cs_dot[list[i]->ip])(0);
                 //		} while (last_ip != list[i]->ip[0] && list[i]->ip[0] <= FSTAGE);
-                if (list[i]->ip[0] <= FSTAGE) {
+                if (list[i]->ip <= FSTAGE) {
                     done = false;
                 }
             }
         }
     } while (!done);
-    for (int i = 0; i < nprocs; i++) {
-        delete[] list[i]->ip;
-    }
 
     delete[] list;
 }
 
 FMM::FMM() {
-// TODO Auto-generated constructor stub
+    MPI_datatypes_init();
 
 }
 
@@ -938,8 +991,8 @@ void FMM::step(Real dt) {
     set_time(get_time() + dt);
 }
 
-void FMM::compute_update(int dir) {
-    Hydro::inc_instruction_pointer(dir);
+void FMM::compute_update(int) {
+    Hydro::inc_instruction_pointer();
 }
 
 bool FMM::check_for_refine() {
@@ -975,6 +1028,25 @@ void FMM::store_pot() {
             }
         }
     }
+}
+
+void FMM::apply_pot_change(int) {
+//#pragma omp parallel for collapse(2)
+
+    for (int k = BW; k < GNX - BW; k++) {
+        for (int j = BW; j < GNX - BW; j++) {
+            for (int i = BW; i < GNX - BW; i++) {
+                Real pot = get_phi(i, j, k);
+                pot *= U(i, j, k).rho();
+                pot += U(i, j, k).rot_pot(X(i, j, k));
+                U(i, j, k).set_pot(pot);
+                Real new_pot = U(i, j, k).pot() - 0.5 * get_phi(i, j, k) * U(i, j, k).rho();
+                dpot(i, j, k) = (new_pot - old_pot(i, j, k));
+                U(i, j, k)[State::et_index] -= (new_pot - old_pot(i, j, k));
+            }
+        }
+    }
+    inc_instruction_pointer();
 }
 
 void FMM::account_pot() {
@@ -1029,6 +1101,37 @@ void FMM::update() {
             }
         }
     }
+}
+
+void FMM::compute_gravity_update(int) {
+//#pragma omp parallel for collapse(2)
+    for (int k = BW; k < GNX - BW; k++) {
+        for (int j = BW; j < GNX - BW; j++) {
+            for (int i = BW; i < GNX - BW; i++) {
+                _3Vec x = X(i, j, k);
+                Real d = U(i, j, k).rho() - State::rho_floor;
+                Real R = sqrt(x[0] * x[0] + x[1] * x[1]);
+                D(i, j, k)[State::lz_index] += d * g_lz(i, j, k);
+                D(i, j, k)[State::sx_index] += d * gx(i, j, k);
+                D(i, j, k)[State::sy_index] += d * gy(i, j, k);
+                D(i, j, k)[State::sz_index] += d * gz(i, j, k);
+                D(i, j, k)[State::et_index] += g_energy(i, j, k) + D(i, j, k)[State::pot_index];
+                D(i, j, k)[State::pot_index] = 0.0;
+            }
+        }
+    }
+
+//#pragma omp parallel for collapse(2)
+    for (int k = BW; k < GNX - BW; k++) {
+        for (int j = BW; j < GNX - BW; j++) {
+            for (int i = BW; i < GNX - BW; i++) {
+                U(i, j, k)[State::et_index] += dpot(i, j, k);
+                U(i, j, k) = (U(i, j, k) + D(i, j, k) * _dt) * _beta + U0(i, j, k) * (1.0 - _beta);
+                U(i, j, k).floor(X(i, j, k));
+            }
+        }
+    }
+    inc_instruction_pointer();
 }
 
 _3Vec FMM::system_com() {
@@ -1359,6 +1462,23 @@ void FMM::find_neighbors() {
 
 Real FMM::g_lz(int i, int j, int k) const {
     return L(i + FBW - BW, j + FBW - BW, k + FBW - BW).g_lz();
+}
+
+void FMM::copy_pot_to_hydro_grid(int) {
+    FMM* p;
+    Hydro* g;
+    Real pot;
+    for (int k = BW - 1; k < GNX - BW + 1; k++) {
+        for (int j = BW - 1; j < GNX - BW + 1; j++) {
+            for (int i = BW - 1; i < GNX - BW + 1; i++) {
+                pot = get_phi(i, j, k);
+                pot *= U(i, j, k).rho();
+                pot += U(i, j, k).rot_pot(X(i, j, k));
+                U(i, j, k).set_pot(pot);
+            }
+        }
+    }
+    inc_instruction_pointer();
 }
 
 void FMM::pot_to_hydro_grid() {

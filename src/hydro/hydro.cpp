@@ -10,6 +10,7 @@
 #include "../indexer3d.h"
 #include "../reconstruct.h"
 
+Real Hydro::root_dt;
 
 void Hydro::write(MPI_File* fh) {
     MPI_File_write(*fh, &dx, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
@@ -206,142 +207,142 @@ Vector<State, 4> Hydro::state_sum() const {
     return s0;
 }
 
-void Hydro::amr_bnd_send(int dir) {
+void Hydro::amr_bnd_send(int) {
     Hydro* g;
-    amr_cnt[dir] = 0;
     State slp, u0, up, um;
     Vector<int, 3> ub, lb, o, v0, vp, vm, v1;
     int cnt, tag, i0, j0, k0;
-    for (ChildIndex i = 0; i < 8; i++) {
-        g = dynamic_cast<Hydro*>(get_child(i));
-        if (g) {
-            for (int f = 2 * dir; f < 2 * dir + 2; f++) {
-                ub = GNX - BW - 1;
-                lb = BW;
-                if (f % 2 == 0) {
-                    lb[f / 2] = 0;
-                    ub[f / 2] = BW - 1;
-                } else {
-                    lb[f / 2] = GNX - BW;
-                    ub[f / 2] = GNX - 1;
-                }
-                o = i.vec();
-                o *= (GNX - 2 * BW);
-                o += BW;
-                if (g->is_amr_bound(f)) {
-                    State tmp, tmp2;
-                    const int sz = (GNX - 2 * BW) * (GNX - 2 * BW) * BW;
-                    cnt = 0;
-                    mpi_amr_buffer[2 * dir][amr_cnt[dir]] = new State[sz];
-                    for (int k = lb[2]; k <= ub[2]; k++) {
-                        k0 = (o[2] + k) / 2;
-                        for (int j = lb[1]; j <= ub[1]; j++) {
-                            j0 = (o[1] + j) / 2;
-                            for (int i = lb[0]; i <= ub[0]; i++) {
-                                i0 = (o[0] + i) / 2;
-                                tmp = U(i0, j0, k0);
-                                tmp.to_prim(this->X(i0, j0, k0));
-                                tmp.from_prim(g->X(i, j, k));
-                                mpi_amr_buffer[2 * dir][amr_cnt[dir]][cnt] = tmp;
-                                cnt++;
+    for (int dir = 0; dir < 3; dir++) {
+        amr_cnt[dir] = 0;
+        for (ChildIndex i = 0; i < 8; i++) {
+            g = dynamic_cast<Hydro*>(get_child(i));
+            if (g) {
+                for (int f = 2 * dir; f < 2 * dir + 2; f++) {
+                    ub = GNX - BW - 1;
+                    lb = BW;
+                    if (f % 2 == 0) {
+                        lb[f / 2] = 0;
+                        ub[f / 2] = BW - 1;
+                    } else {
+                        lb[f / 2] = GNX - BW;
+                        ub[f / 2] = GNX - 1;
+                    }
+                    o = i.vec();
+                    o *= (GNX - 2 * BW);
+                    o += BW;
+                    if (g->is_amr_bound(f)) {
+                        State tmp, tmp2;
+                        const int sz = (GNX - 2 * BW) * (GNX - 2 * BW) * BW;
+                        cnt = 0;
+                        mpi_amr_buffer[2 * dir][amr_cnt[dir]] = new State[sz];
+                        for (int k = lb[2]; k <= ub[2]; k++) {
+                            k0 = (o[2] + k) / 2;
+                            for (int j = lb[1]; j <= ub[1]; j++) {
+                                j0 = (o[1] + j) / 2;
+                                for (int i = lb[0]; i <= ub[0]; i++) {
+                                    i0 = (o[0] + i) / 2;
+                                    tmp = U(i0, j0, k0);
+                                    tmp.to_prim(this->X(i0, j0, k0));
+                                    tmp.from_prim(g->X(i, j, k));
+                                    mpi_amr_buffer[2 * dir][amr_cnt[dir]][cnt] = tmp;
+                                    cnt++;
+                                }
                             }
+                        }assert( cnt == sz);
+                        tag = tag_gen(TAG_FLUX, g->get_id(), f);
+                        MPI_Isend(mpi_amr_buffer[2 * dir][amr_cnt[dir]], cnt, MPI_state_t, g->proc(), tag, MPI_COMM_WORLD,
+                                &(amr_send_request[dir][amr_cnt[dir]]));
+                        amr_cnt[dir]++;
+                        if (amr_cnt[dir] > 8) {
+                            printf("Internal amr buffer xceeded = %i\n", amr_cnt[dir]);
+                            abort();
                         }
-                    }assert( cnt == sz);
-                    tag = tag_gen(TAG_FLUX, g->get_id(), f);
-                    MPI_Isend(mpi_amr_buffer[2 * dir][amr_cnt[dir]], cnt, MPI_state_t, g->proc(), tag, MPI_COMM_WORLD, &(amr_send_request[dir][amr_cnt[dir]]));
-                    amr_cnt[dir]++;
-                    if (amr_cnt[dir] > 8) {
-                        printf("Internal amr buffer xceeded = %i\n", amr_cnt[dir]);
-                        abort();
                     }
                 }
             }
         }
     }
-    inc_instruction_pointer(dir);
+    inc_instruction_pointer();
 }
 
-void Hydro::amr_bnd_send_wait(int dir) {
+void Hydro::amr_bnd_send_wait(int) {
     int flag;
-    MPI_Testall(amr_cnt[dir], amr_send_request[dir], &flag, MPI_STATUS_IGNORE );
-    if (flag) {
-        for (int i = 0; i < amr_cnt[dir]; i++) {
-            delete[] mpi_amr_buffer[2 * dir][i];
+    for (int dir = 0; dir < 3; dir++) {
+        MPI_Testall(amr_cnt[dir], amr_send_request[dir], &flag, MPI_STATUS_IGNORE );
+        if (!flag) {
+            break;
         }
-        inc_instruction_pointer(dir);
+    }
+    if (flag) {
+        for (int dir = 0; dir < 3; dir++) {
+            for (int i = 0; i < amr_cnt[dir]; i++) {
+                delete[] mpi_amr_buffer[2 * dir][i];
+            }
+        }
+        inc_instruction_pointer();
     }
 }
 
-void Hydro::inject_from_children_send(int dir) {
-    if (dir == 0) {
-        int cnt, tag;
-        if (get_level() != 0) {
-            mpi_buffer[0] = new State[(GNX / 2 - BW) * (GNX / 2 - BW) * (GNX / 2 - BW)];
-            cnt = 0;
-            for (int k = BW; k < GNX - BW; k += 2) {
-                for (int j = BW; j < GNX - BW; j += 2) {
-                    for (int i = BW; i < GNX - BW; i += 2) {
-                        mpi_buffer[0][cnt] = U.oct_avg(i, j, k);
-                        cnt++;
-                    }
+void Hydro::inject_from_children_send(int) {
+    int cnt, tag;
+    if (get_level() != 0) {
+        mpi_buffer[0] = new State[(GNX / 2 - BW) * (GNX / 2 - BW) * (GNX / 2 - BW)];
+        cnt = 0;
+        for (int k = BW; k < GNX - BW; k += 2) {
+            for (int j = BW; j < GNX - BW; j += 2) {
+                for (int i = BW; i < GNX - BW; i += 2) {
+                    mpi_buffer[0][cnt] = U.oct_avg(i, j, k);
+                    cnt++;
                 }
             }
-            tag = tag_gen(TAG_C2P, get_id(), 0);
-            MPI_Isend(mpi_buffer[0], cnt, MPI_state_t, get_parent()->proc(), tag, MPI_COMM_WORLD, send_request);
         }
+        tag = tag_gen(TAG_C2P, get_id(), 0);
+        MPI_Isend(mpi_buffer[0], cnt, MPI_state_t, get_parent()->proc(), tag, MPI_COMM_WORLD, send_request);
     }
-    inc_instruction_pointer(dir);
+    inc_instruction_pointer();
 }
 
-void Hydro::inject_from_children_recv(int dir) {
-    if (dir == 0) {
-        int tag;
-        OctNode* child;
-        for (ChildIndex ci = 0; ci < 8; ci++) {
-            child = get_child(ci);
-            if (child != NULL) {
-                tag = tag_gen(TAG_C2P, child->get_id(), 0);
-                MPI_Irecv(U.ptr(), 1, MPI_child_t[ci], child->proc(), tag, MPI_COMM_WORLD, recv_request + ci);
-            }
+void Hydro::inject_from_children_recv(int) {
+    int tag;
+    OctNode* child;
+    for (ChildIndex ci = 0; ci < 8; ci++) {
+        child = get_child(ci);
+        if (child != NULL) {
+            tag = tag_gen(TAG_C2P, child->get_id(), 0);
+            MPI_Irecv(U.ptr(), 1, MPI_child_t[ci], child->proc(), tag, MPI_COMM_WORLD, recv_request + ci);
         }
     }
-    inc_instruction_pointer(dir);
+    inc_instruction_pointer();
 }
 
-void Hydro::inject_from_children_send_wait(int dir) {
+void Hydro::inject_from_children_send_wait(int) {
     int flag;
-    if (dir == 0) {
-        MPI_Test(send_request, &flag, MPI_STATUS_IGNORE );
-        if (flag && get_level() != 0) {
-            delete[] mpi_buffer[0];
-        }
-    } else {
-        flag = true;
+    MPI_Test(send_request, &flag, MPI_STATUS_IGNORE );
+    if (flag && get_level() != 0) {
+        delete[] mpi_buffer[0];
     }
     if (flag) {
-        inc_instruction_pointer(dir);
+        inc_instruction_pointer();
     }
 }
 
-void Hydro::inject_from_children_recv_wait(int dir) {
+void Hydro::inject_from_children_recv_wait(int) {
     int flag;
-    if (dir == 0) {
-        MPI_Testall(8, recv_request, &flag, MPI_STATUS_IGNORE );
-    } else {
-        flag = true;
-    }
+    MPI_Testall(8, recv_request, &flag, MPI_STATUS_IGNORE );
     if (flag) {
-        inc_instruction_pointer(dir);
+        inc_instruction_pointer();
     }
 
 }
 
-void Hydro::flux_bnd_comm(int dir) {
+void Hydro::flux_bnd_comm(int) {
     int send_tag, recv_tag, f, gproc;
-    for (f = 2 * dir; f < 2 * dir + 2; f++) {
+    for (f = 0; f < 6; f++) {
         if (is_real_bound(f)) {
             send_tag = tag_gen(TAG_FLUX, get_sibling(f)->get_id(), f ^ 1);
-            MPI_Isend(U.ptr(), 1, MPI_guard_send_t[f], get_sibling(f)->proc(), send_tag, MPI_COMM_WORLD, send_request + f);
+            MPI_Request req;
+            MPI_Isend(U.ptr(), 1, MPI_guard_send_t[f], get_sibling(f)->proc(), send_tag, MPI_COMM_WORLD, &req);
+            MPI_Request_free(&req);
         }
         if (!is_phys_bound(f)) {
             if (is_real_bound(f)) {
@@ -353,229 +354,279 @@ void Hydro::flux_bnd_comm(int dir) {
             MPI_Irecv(U.ptr(), 1, MPI_guard_recv_t[f], gproc, recv_tag, MPI_COMM_WORLD, recv_request + f);
         }
     }
-    inc_instruction_pointer(dir);
+    inc_instruction_pointer();
 }
 
-void Hydro::flux_bnd_recv_wait(int dir) {
+void Hydro::flux_bnd_recv_wait(int) {
     int flag;
-    MPI_Testall(2, recv_request + 2 * dir, &flag, MPI_STATUS_IGNORE );
+    MPI_Testall(6, recv_request, &flag, MPI_STATUS_IGNORE );
     if (flag) {
-        inc_instruction_pointer(dir);
+        inc_instruction_pointer();
     }
 }
 
-void Hydro::flux_bnd_send_wait(int dir) {
-    int flag;
-    MPI_Testall(2, send_request + 2 * dir, &flag, MPI_STATUS_IGNORE );
-    if (flag) {
-        inc_instruction_pointer(dir);
-    }
+void Hydro::flux_bnd_send_wait(int) {
+    // int flag;
+    // MPI_Testall(6, send_request, &flag, MPI_STATUS_IGNORE );
+    //  if (flag) {
+    inc_instruction_pointer();
+    //}
 }
 
-void Hydro::flux_compute(int dir) {
+void Hydro::flux_compute(int) {
+
+    Real dtinv = 0.0;
 //#pragma omp parallel for collapse(1)
     for (int k = BW; k < GNX - BW; k++) {
         for (int j = BW; j < GNX - BW; j++) {
             State q0[GNX], ql[GNX], qr[GNX];
             _3Vec x;
             Real a;
-            if (dir == 0) {
-                for (int i = 0; i < GNX; i++) {
-                    q0[i] = U(i, j, k);
-                    q0[i].to_prim(Hydro::X(i, j, k));
-                }
-                reconstruct(q0, ql, qr);
-                for (int i = BW; i < GNX - BW + 1; i++) {
-                    x = Hydro::Xfx(i, j, k);
-                    ql[i].from_prim(x);
-                    qr[i].from_prim(x);
-                    a = max(ql[i].max_abs_x_eigen(x), qr[i].max_abs_x_eigen(x));
-                    F[0](i, j, k) = ((ql[i].x_flux(x) + qr[i].x_flux(x)) - (qr[i] - ql[i]) * a) * 0.5;
-
-                }
-            } else if (dir == 1) {
-                for (int i = 0; i < GNX; i++) {
-                    q0[i] = U(j, i, k);
-                    q0[i].to_prim(Hydro::X(j, i, k));
-                }
-                reconstruct(q0, ql, qr);
-                for (int i = BW; i < GNX - BW + 1; i++) {
-                    x = Hydro::Xfy(j, i, k);
-                    ql[i].from_prim(x);
-                    qr[i].from_prim(x);
-                    a = max(ql[i].max_abs_y_eigen(x), qr[i].max_abs_y_eigen(x));
-                    F[1](j, i, k) = ((ql[i].y_flux(x) + qr[i].y_flux(x)) - (qr[i] - ql[i]) * a) * 0.5;
-                }
-            } else {
-                for (int i = 0; i < GNX; i++) {
-                    q0[i] = U(j, k, i);
-                    q0[i].to_prim(Hydro::X(j, k, i));
-                }
-                reconstruct(q0, ql, qr);
-                for (int i = BW; i < GNX - BW + 1; i++) {
-                    x = Hydro::Xfz(j, k, i);
-                    ql[i].from_prim(x);
-                    qr[i].from_prim(x);
-                    a = max(ql[i].max_abs_z_eigen(x), qr[i].max_abs_z_eigen(x));
-                    F[2](j, k, i) = ((ql[i].z_flux(x) + qr[i].z_flux(x)) - (qr[i] - ql[i]) * a) * 0.5;
-                }
+            for (int i = 0; i < GNX; i++) {
+                q0[i] = U(i, j, k);
+                q0[i].to_prim(Hydro::X(i, j, k));
+            }
+            reconstruct(q0, ql, qr);
+            for (int i = BW; i < GNX - BW + 1; i++) {
+                x = Hydro::Xfx(i, j, k);
+                ql[i].from_prim(x);
+                qr[i].from_prim(x);
+                a = max(ql[i].max_abs_x_eigen(x), qr[i].max_abs_x_eigen(x));
+                F[0](i, j, k) = ((ql[i].x_flux(x) + qr[i].x_flux(x)) - (qr[i] - ql[i]) * a) * 0.5;
+                dtinv = max(a, dtinv);
+            }
+            for (int i = 0; i < GNX; i++) {
+                q0[i] = U(j, i, k);
+                q0[i].to_prim(Hydro::X(j, i, k));
+            }
+            reconstruct(q0, ql, qr);
+            for (int i = BW; i < GNX - BW + 1; i++) {
+                x = Hydro::Xfy(j, i, k);
+                ql[i].from_prim(x);
+                qr[i].from_prim(x);
+                a = max(ql[i].max_abs_y_eigen(x), qr[i].max_abs_y_eigen(x));
+                F[1](j, i, k) = ((ql[i].y_flux(x) + qr[i].y_flux(x)) - (qr[i] - ql[i]) * a) * 0.5;
+                dtinv = max(a, dtinv);
+            }
+            for (int i = 0; i < GNX; i++) {
+                q0[i] = U(j, k, i);
+                q0[i].to_prim(Hydro::X(j, k, i));
+            }
+            reconstruct(q0, ql, qr);
+            for (int i = BW; i < GNX - BW + 1; i++) {
+                x = Hydro::Xfz(j, k, i);
+                ql[i].from_prim(x);
+                qr[i].from_prim(x);
+                a = max(ql[i].max_abs_z_eigen(x), qr[i].max_abs_z_eigen(x));
+                F[2](j, k, i) = ((ql[i].z_flux(x) + qr[i].z_flux(x)) - (qr[i] - ql[i]) * a) * 0.5;
+                dtinv = max(a, dtinv);
             }
         }
     }
-    flux_physical_bounds(dir);
-    inc_instruction_pointer(dir);
+    my_dt = GRID_CFL_FACTOR * dx / dtinv;
+    for (int dir = 0; dir < 3; dir++) {
+        flux_physical_bounds(dir);
+    }
+    inc_instruction_pointer();
 }
 
-void Hydro::flux_physical_bounds(int dir) {
+void Hydro::recv_from_children_dt(int) {
+    if (_beta == 1.0) {
+        for (int i = 0; i < 8; i++) {
+            if (get_child(i)) {
+                int tag = tag_gen(TAG_DTUP, get_child(i)->get_id(), 0);
+                MPI_Irecv(recv_dt_value + i, 1, MPI_DOUBLE, get_child(i)->proc(), tag, MPI_COMM_WORLD, recv_dt_request + i);
+            } else {
+                recv_dt_value[i] = 1.0e+99;
+                recv_dt_request[i] = MPI_REQUEST_NULL;
+            }
+        }
+    }
+    inc_instruction_pointer();
+}
+
+void Hydro::recv_from_children_dt_wait(int) {
+    int flag;
+    if (_beta == 1.0) {
+        MPI_Testall(8, recv_dt_request, &flag, MPI_STATUSES_IGNORE );
+        if (flag) {
+            for (int i = 0; i < 8; i++) {
+                my_dt = min(my_dt, recv_dt_value[i]);
+            }
+            if (get_level() != 0) {
+                MPI_Request req;
+                int tag = tag_gen(TAG_DTUP, get_id(), 0);
+                MPI_Isend(&my_dt, 1, MPI_DOUBLE, get_parent()->proc(), tag, MPI_COMM_WORLD, &req);
+            }
+            if( get_level() == 0 ) {
+                root_dt = my_dt;
+            }
+            inc_instruction_pointer();
+        }
+    } else {
+        inc_instruction_pointer();
+    }
+}
+
+void recv_from_parent_dt_wait(int) {
 
 }
 
-void Hydro::flux_cf_adjust_send(int dir) {
+void Hydro::flux_physical_bounds(int) {
+
+}
+
+void Hydro::flux_cf_adjust_send(int) {
     const int sz = (GNX - 2 * BW) * (GNX - 2 * BW) / 4;
     State v;
     Hydro* p;
     int cnt, i, tag;
-    if (dir == 0) {
-        for (int f = 0; f < 2; f++) {
-            if (is_amr_bound(f)) {
-                mpi_buffer[f] = new State[sz];
-                i = BW + f * (GNX - 2 * BW);
-                cnt = 0;
-                for (int k = BW; k < GNX - BW; k += 2) {
-                    for (int j = BW; j < GNX - BW; j += 2) {
-                        v = +F[0](i, j + 0, k + 0);
-                        v += F[0](i, j + 1, k + 0);
-                        v += F[0](i, j + 0, k + 1);
-                        v += F[0](i, j + 1, k + 1);
-                        v *= 0.25;
-                        mpi_buffer[f][cnt] = v;
-                        cnt++;
-                    }
-                }
-                tag = tag_gen(TAG_CF, get_id(), f);
-                assert(cnt==sz);
-                p = dynamic_cast<Hydro*>(get_parent());
-                if (f % 2 == my_child_index().get_x()) {
-                    p = dynamic_cast<Hydro*>(p->get_sibling(f));
-                }
-                MPI_Isend(mpi_buffer[f], cnt, MPI_state_t, p->proc(), tag, MPI_COMM_WORLD, send_request + f);
-            }
+    for (int f = 0; f < 6; f++) {
+        if (!is_amr_bound(f)) {
+            continue;
         }
-    } else if (dir == 1) {
-        for (int f = 2; f < 4; f++) {
-            if (is_amr_bound(f)) {
-                mpi_buffer[f] = new State[sz];
-                i = BW + (f - 2) * (GNX - 2 * BW);
-                cnt = 0;
-                for (int k = BW; k < GNX - BW; k += 2) {
-                    for (int j = BW; j < GNX - BW; j += 2) {
-                        v = +F[1](j + 0, i, k + 0);
-                        v += F[1](j + 1, i, k + 0);
-                        v += F[1](j + 0, i, k + 1);
-                        v += F[1](j + 1, i, k + 1);
-                        v *= 0.25;
-                        mpi_buffer[f][cnt] = v;
-                        cnt++;
-                    }
+        if (f >> 1 == 0) {
+            mpi_buffer[f] = new State[sz];
+            i = BW + f * (GNX - 2 * BW);
+            cnt = 0;
+            for (int k = BW; k < GNX - BW; k += 2) {
+                for (int j = BW; j < GNX - BW; j += 2) {
+                    v = +F[0](i, j + 0, k + 0);
+                    v += F[0](i, j + 1, k + 0);
+                    v += F[0](i, j + 0, k + 1);
+                    v += F[0](i, j + 1, k + 1);
+                    v *= 0.25;
+                    mpi_buffer[f][cnt] = v;
+                    cnt++;
                 }
-                tag = tag_gen(TAG_CF, get_id(), f);
-                assert(cnt==sz);
-                p = dynamic_cast<Hydro*>(get_parent());
-                if (f % 2 == my_child_index().get_y()) {
-                    p = dynamic_cast<Hydro*>(p->get_sibling(f));
-                }
-                MPI_Isend(mpi_buffer[f], cnt, MPI_state_t, p->proc(), tag, MPI_COMM_WORLD, send_request + f);
             }
-        }
-    } else {
-        for (int f = 4; f < 6; f++) {
-            if (is_amr_bound(f)) {
-                mpi_buffer[f] = new State[sz];
-                i = BW + (f - 4) * (GNX - 2 * BW);
-                cnt = 0;
-                for (int k = BW; k < GNX - BW; k += 2) {
-                    for (int j = BW; j < GNX - BW; j += 2) {
-                        v = +F[2](j + 0, k + 0, i);
-                        v += F[2](j + 1, k + 0, i);
-                        v += F[2](j + 0, k + 1, i);
-                        v += F[2](j + 1, k + 1, i);
-                        v *= 0.25;
-                        mpi_buffer[f][cnt] = v;
-                        cnt++;
-                    }
-                }
-                tag = tag_gen(TAG_CF, get_id(), f);
-                assert(cnt==sz);
-                p = dynamic_cast<Hydro*>(get_parent());
-                if (f % 2 == my_child_index().get_z()) {
-                    p = dynamic_cast<Hydro*>(p->get_sibling(f));
-                }
-                MPI_Isend(mpi_buffer[f], cnt, MPI_state_t, p->proc(), tag, MPI_COMM_WORLD, send_request + f);
+            tag = tag_gen(TAG_CF, get_id(), f);
+            assert(cnt==sz);
+            p = dynamic_cast<Hydro*>(get_parent());
+            if (f % 2 == my_child_index().get_x()) {
+                p = dynamic_cast<Hydro*>(p->get_sibling(f));
             }
+            MPI_Isend(mpi_buffer[f], cnt, MPI_state_t, p->proc(), tag, MPI_COMM_WORLD, send_request + f);
+        } else if (f >> 1 == 1) {
+            mpi_buffer[f] = new State[sz];
+            i = BW + (f - 2) * (GNX - 2 * BW);
+            cnt = 0;
+            for (int k = BW; k < GNX - BW; k += 2) {
+                for (int j = BW; j < GNX - BW; j += 2) {
+                    v = +F[1](j + 0, i, k + 0);
+                    v += F[1](j + 1, i, k + 0);
+                    v += F[1](j + 0, i, k + 1);
+                    v += F[1](j + 1, i, k + 1);
+                    v *= 0.25;
+                    mpi_buffer[f][cnt] = v;
+                    cnt++;
+                }
+            }
+            tag = tag_gen(TAG_CF, get_id(), f);
+            assert(cnt==sz);
+            p = dynamic_cast<Hydro*>(get_parent());
+            if (f % 2 == my_child_index().get_y()) {
+                p = dynamic_cast<Hydro*>(p->get_sibling(f));
+            }
+            MPI_Isend(mpi_buffer[f], cnt, MPI_state_t, p->proc(), tag, MPI_COMM_WORLD, send_request + f);
+        } else if (f >> 1 == 2) {
+            mpi_buffer[f] = new State[sz];
+            i = BW + (f - 4) * (GNX - 2 * BW);
+            cnt = 0;
+            for (int k = BW; k < GNX - BW; k += 2) {
+                for (int j = BW; j < GNX - BW; j += 2) {
+                    v = +F[2](j + 0, k + 0, i);
+                    v += F[2](j + 1, k + 0, i);
+                    v += F[2](j + 0, k + 1, i);
+                    v += F[2](j + 1, k + 1, i);
+                    v *= 0.25;
+                    mpi_buffer[f][cnt] = v;
+                    cnt++;
+                }
+            }
+            tag = tag_gen(TAG_CF, get_id(), f);
+            assert(cnt==sz);
+            p = dynamic_cast<Hydro*>(get_parent());
+            if (f % 2 == my_child_index().get_z()) {
+                p = dynamic_cast<Hydro*>(p->get_sibling(f));
+            }
+            MPI_Isend(mpi_buffer[f], cnt, MPI_state_t, p->proc(), tag, MPI_COMM_WORLD, send_request + f);
         }
     }
-    inc_instruction_pointer(dir);
+    inc_instruction_pointer();
 }
 
-void Hydro::flux_cf_adjust_recv(int dir) {
+void Hydro::flux_cf_adjust_recv(int) {
     const int sz = (GNX - 2 * BW) * (GNX - 2 * BW) / 4;
     int f, tag;
     ChildIndex ci;
     OctNode* child;
-    amr_has[dir] = false;
-    for (ci = 0; ci < 8; ci++) {
-        child = (get_child(ci));
-        if (child != NULL) {
-            f = (2 * dir) ^ 1 ^ (ci.vec()[dir] % 2);
-            mpi_amr_buffer[f][ci] = NULL;
-            if (child->is_amr_bound(f)) {
-                mpi_amr_buffer[f][ci] = new State[sz];
-                tag = tag_gen(TAG_CF, child->get_id(), f);
-                MPI_Irecv(mpi_amr_buffer[f][ci], sz, MPI_state_t, child->proc(), tag, MPI_COMM_WORLD, amr_recv_request[f] + ci);
-                amr_has[dir] = true;
-            }
-        } else {
-            f = (2 * dir) ^ (ci.vec()[dir] % 2);
-            mpi_amr_buffer[f][ci] = NULL;
-            if (is_real_bound(f)) {
-                child = get_sibling(f)->get_child(ci ^ (1 << dir));
-                if (child != NULL) {
-                    if (child->is_amr_bound(f ^ 1)) {
-                        mpi_amr_buffer[f][ci] = new State[sz];
-                        tag = tag_gen(TAG_CF, child->get_id(), f ^ 1);
-                        MPI_Irecv(mpi_amr_buffer[f][ci], sz, MPI_state_t, child->proc(), tag, MPI_COMM_WORLD, amr_recv_request[f] + ci);
-                        amr_has[dir] = true;
+    for (int dir = 0; dir < 3; dir++) {
+        amr_has[dir] = false;
+        for (ci = 0; ci < 8; ci++) {
+            child = (get_child(ci));
+            if (child != NULL) {
+                f = (2 * dir) ^ 1 ^ (ci.vec()[dir] % 2);
+                mpi_amr_buffer[f][ci] = NULL;
+                if (child->is_amr_bound(f)) {
+                    mpi_amr_buffer[f][ci] = new State[sz];
+                    tag = tag_gen(TAG_CF, child->get_id(), f);
+                    MPI_Irecv(mpi_amr_buffer[f][ci], sz, MPI_state_t, child->proc(), tag, MPI_COMM_WORLD, amr_recv_request[f] + ci);
+                    amr_has[dir] = true;
+                }
+            } else {
+                f = (2 * dir) ^ (ci.vec()[dir] % 2);
+                mpi_amr_buffer[f][ci] = NULL;
+                if (is_real_bound(f)) {
+                    child = get_sibling(f)->get_child(ci ^ (1 << dir));
+                    if (child != NULL) {
+                        if (child->is_amr_bound(f ^ 1)) {
+                            mpi_amr_buffer[f][ci] = new State[sz];
+                            tag = tag_gen(TAG_CF, child->get_id(), f ^ 1);
+                            MPI_Irecv(mpi_amr_buffer[f][ci], sz, MPI_state_t, child->proc(), tag, MPI_COMM_WORLD, amr_recv_request[f] + ci);
+                            amr_has[dir] = true;
+                        }
                     }
                 }
             }
         }
     }
-    inc_instruction_pointer(dir);
+    inc_instruction_pointer();
 }
 
-void Hydro::flux_cf_adjust_send_wait(int dir) {
+void Hydro::flux_cf_adjust_send_wait(int) {
     int flag;
-    MPI_Testall(2, send_request + 2 * dir, &flag, MPI_STATUS_IGNORE );
+    MPI_Testall(6, send_request, &flag, MPI_STATUS_IGNORE );
     if (flag) {
-        for (int f = 2 * dir; f < 2 * dir + 2; f++) {
+        for (int f = 0; f < 6; f++) {
             if (is_amr_bound(f)) {
                 delete[] mpi_buffer[f];
             }
         }
-        inc_instruction_pointer(dir);
+        inc_instruction_pointer();
     }
 }
 
-void Hydro::flux_cf_adjust_recv_wait(int dir) {
-    int flag, i, flag_odd, flag_even;
+void Hydro::flux_cf_adjust_recv_wait(int) {
+    int flag, i;
     Hydro* child;
     int xlb, xub, ylb, yub, zlb, zub, cnt, f;
     bool test;
-    if (amr_has[dir]) {
-        MPI_Testall(8, amr_recv_request[2 * dir], &flag_odd, MPI_STATUS_IGNORE );
-        MPI_Testall(8, amr_recv_request[2 * dir + 1], &flag_even, MPI_STATUS_IGNORE );
-        flag = flag_odd && flag_even;
-        if (flag) {
+    flag = true;
+    for (int dir = 0; dir < 3; dir++) {
+        if (amr_has[dir]) {
+            MPI_Testall(8, amr_recv_request[2 * dir], &flag, MPI_STATUS_IGNORE );
+            if (!flag) {
+                break;
+            }
+            MPI_Testall(8, amr_recv_request[2 * dir + 1], &flag, MPI_STATUS_IGNORE );
+            if (!flag) {
+                break;
+            }
+        }
+    }
+    if (flag) {
+        for (int dir = 0; dir < 3; dir++) {
             for (ChildIndex ci = 0; ci < 8; ci++) {
                 child = dynamic_cast<Hydro*>(get_child(ci));
                 test = false;
@@ -633,11 +684,7 @@ void Hydro::flux_cf_adjust_recv_wait(int dir) {
                 }
             }
         }
-    } else {
-        flag = true;
-    }
-    if (flag) {
-        inc_instruction_pointer(dir);
+        inc_instruction_pointer();
     }
 }
 
@@ -674,26 +721,24 @@ Vector<Real, STATE_NF> Hydro::get_dudt(int i, int j, int k) const {
     return D(i, j, k);
 }
 
-void Hydro::compute_dudt(int dir) {
-    if (dir == 0) {
-        const Real da = dx * dx;
+void Hydro::compute_dudt(int) {
+    const Real da = dx * dx;
 //#pragma omp parallel for collapse(2)
-        for (int k = BW; k < GNX - BW; k++) {
-            for (int j = BW; j < GNX - BW; j++) {
-                _3Vec x;
-                for (int i = BW; i < GNX - BW; i++) {
-                    x = Hydro::X(i, j, k);
-                    D(i, j, k) = 0.0;
-                    D(i, j, k) += -(F[0](i + 1, j, k) - F[0](i, j, k)) / dx;
-                    D(i, j, k) += -(F[1](i, j + 1, k) - F[1](i, j, k)) / dx;
-                    D(i, j, k) += -(F[2](i, j, k + 1) - F[2](i, j, k)) / dx;
-                    D(i, j, k) += U(i, j, k).source(this->X(i, j, k), get_time());
-                }
+    for (int k = BW; k < GNX - BW; k++) {
+        for (int j = BW; j < GNX - BW; j++) {
+            _3Vec x;
+            for (int i = BW; i < GNX - BW; i++) {
+                x = Hydro::X(i, j, k);
+                D(i, j, k) = 0.0;
+                D(i, j, k) += -(F[0](i + 1, j, k) - F[0](i, j, k)) / dx;
+                D(i, j, k) += -(F[1](i, j + 1, k) - F[1](i, j, k)) / dx;
+                D(i, j, k) += -(F[2](i, j, k + 1) - F[2](i, j, k)) / dx;
+                D(i, j, k) += U(i, j, k).source(this->X(i, j, k), get_time());
             }
         }
-        this->compute_flow_off();
     }
-    inc_instruction_pointer(dir);
+    this->compute_flow_off();
+    inc_instruction_pointer();
 }
 
 void Hydro::compute_flow_off() {
@@ -735,43 +780,45 @@ void Hydro::compute_flow_off() {
     }
 }
 
-void Hydro::compute_update(int dir) {
-    if (dir == 0) {
+void Hydro::compute_update(int) {
 //#pragma omp parallel for collapse(2)
-        for (int k = BW; k < GNX - BW; k++) {
-            for (int j = BW; j < GNX - BW; j++) {
-                for (int i = BW; i < GNX - BW; i++) {
-                    U(i, j, k) = (U(i, j, k) + D(i, j, k) * _dt) * _beta + U0(i, j, k) * (1.0 - _beta);
-                    U(i, j, k).floor(X(i, j, k));
-                }
+    for (int k = BW; k < GNX - BW; k++) {
+        for (int j = BW; j < GNX - BW; j++) {
+            for (int i = BW; i < GNX - BW; i++) {
+                U(i, j, k) = (U(i, j, k) + D(i, j, k) * _dt) * _beta + U0(i, j, k) * (1.0 - _beta);
+                U(i, j, k).floor(X(i, j, k));
             }
         }
     }
-    inc_instruction_pointer(dir);
+    inc_instruction_pointer();
 }
 
-void Hydro::enforce_dual_energy_formalism(int dir) {
-    if (dir == 0) {
-        Hydro* g = this;
+void Hydro::enforce_dual_energy_formalism(int) {
+    Hydro* g = this;
 //#pragma omp parallel for collapse(2)
-        for (int k = BW; k < GNX - BW; k++) {
-            for (int j = BW; j < GNX - BW; j++) {
-                for (int i = BW; i < GNX - BW; i++) {
-                    g->U(i, j, k).enforce_dual_energy_formalism(g->X(i, j, k), g->U(i + 1, j, k), g->U(i - 1, j, k), g->U(i, j + 1, k), g->U(i, j - 1, k),
-                            g->U(i, j, k + 1), g->U(i, j, k - 1));
-                }
+    for (int k = BW; k < GNX - BW; k++) {
+        for (int j = BW; j < GNX - BW; j++) {
+            for (int i = BW; i < GNX - BW; i++) {
+                g->U(i, j, k).enforce_dual_energy_formalism(g->X(i, j, k), g->U(i + 1, j, k), g->U(i - 1, j, k), g->U(i, j + 1, k), g->U(i, j - 1, k),
+                        g->U(i, j, k + 1), g->U(i, j, k - 1));
             }
         }
     }
-    inc_instruction_pointer(dir);
+    inc_instruction_pointer();
 }
 
-void Hydro::sync(int) {
-    if (threads_are_synced(3)) {
-        inc_instruction_pointer(0);
-        inc_instruction_pointer(1);
-        inc_instruction_pointer(2);
+void Hydro::store_U(int) {
+    Hydro* g;
+    FO0 = FO;
+//#pragma omp parallel for collapse(2)
+    for (int k = BW; k < GNX - BW; k++) {
+        for (int j = BW; j < GNX - BW; j++) {
+            for (int i = BW; i < GNX - BW; i++) {
+                U0(i, j, k) = U(i, j, k);
+            }
+        }
     }
+    inc_instruction_pointer();
 }
 
 void Hydro::set_refine_flags() {
@@ -874,7 +921,7 @@ Real Hydro::zf(int i) const {
     return Real(offset[2] + i) * dx - (GNX / 2) * h0 - origin[2];
 }
 
-void Hydro::max_dt_compute(int dir) {
+void Hydro::max_dt_compute(int) {
     Real this_dt;
     Real dtinv = 0.0;
 //#pragma omp parallel for collapse(1)
@@ -885,44 +932,43 @@ void Hydro::max_dt_compute(int dir) {
             int i;
             Real this_dtinv;
             this_dtinv = 0.0;
-            if (dir == 0) {
-                for (i = 0; i < GNX; i++) {
-                    q0[i] = U(i, j, k);
-                    q0[i].to_prim(Hydro::X(i, j, k));
-                }
-                reconstruct(q0, ql, qr);
-                for (i = BW; i < GNX - BW + 1; i++) {
-                    x = Hydro::Xfx(i, j, k);
-                    ql[i].from_prim(x);
-                    qr[i].from_prim(x);
-                    this_dtinv = max(this_dtinv, ql[i].max_abs_x_eigen(x), qr[i].max_abs_x_eigen(x));
-                }
-            } else if (dir == 1) {
-                for (i = 0; i < GNX; i++) {
-                    q0[i] = U(j, i, k);
-                    q0[i].to_prim(Hydro::X(j, i, k));
-                }
-                reconstruct(q0, ql, qr);
-                for (i = BW; i < GNX - BW + 1; i++) {
-                    x = Hydro::Xfy(j, i, k);
-                    ql[i].from_prim(x);
-                    qr[i].from_prim(x);
-                    this_dtinv = max(this_dtinv, ql[i].max_abs_y_eigen(x), qr[i].max_abs_y_eigen(x));
-                }
-            } else {
-                for (i = 0; i < GNX; i++) {
-                    q0[i] = U(j, k, i);
-                    q0[i].to_prim(Hydro::X(j, k, i));
-                }
-                reconstruct(q0, ql, qr);
-                for (i = BW; i < GNX - BW + 1; i++) {
-                    x = Hydro::Xfz(j, k, i);
-                    ql[i].from_prim(x);
-                    qr[i].from_prim(x);
-                    this_dtinv = max(this_dtinv, ql[i].max_abs_z_eigen(x), qr[i].max_abs_z_eigen(x));
-                }
+            for (i = 0; i < GNX; i++) {
+                q0[i] = U(i, j, k);
+                q0[i].to_prim(Hydro::X(i, j, k));
             }
-//#pragma omp critical
+            reconstruct(q0, ql, qr);
+            for (i = BW; i < GNX - BW + 1; i++) {
+                x = Hydro::Xfx(i, j, k);
+                ql[i].from_prim(x);
+                qr[i].from_prim(x);
+                this_dtinv = max(this_dtinv, ql[i].max_abs_x_eigen(x), qr[i].max_abs_x_eigen(x));
+                assert(this_dtinv > 0.0 );
+            }
+            for (i = 0; i < GNX; i++) {
+                q0[i] = U(j, i, k);
+                q0[i].to_prim(Hydro::X(j, i, k));
+            }
+            reconstruct(q0, ql, qr);
+            for (i = BW; i < GNX - BW + 1; i++) {
+                x = Hydro::Xfy(j, i, k);
+                ql[i].from_prim(x);
+                qr[i].from_prim(x);
+                this_dtinv = max(this_dtinv, ql[i].max_abs_y_eigen(x), qr[i].max_abs_y_eigen(x));
+                assert(this_dtinv > 0.0 );
+            }
+            for (i = 0; i < GNX; i++) {
+                q0[i] = U(j, k, i);
+                q0[i].to_prim(Hydro::X(j, k, i));
+            }
+            reconstruct(q0, ql, qr);
+            for (i = BW; i < GNX - BW + 1; i++) {
+                x = Hydro::Xfz(j, k, i);
+                ql[i].from_prim(x);
+                qr[i].from_prim(x);
+                this_dtinv = max(this_dtinv, ql[i].max_abs_z_eigen(x), qr[i].max_abs_z_eigen(x));
+                assert(this_dtinv > 0.0 );
+            }
+            //#pragma omp critical
             dtinv = max(this_dtinv, dtinv);
         }
     }
@@ -933,7 +979,7 @@ void Hydro::max_dt_compute(int dir) {
     this_dt = 1.0 / dtinv;
     this_dt *= GRID_CFL_FACTOR;
     eax = min(this_dt, eax);
-    inc_instruction_pointer(dir);
+    inc_instruction_pointer();
 }
 
 void Hydro::reduce_dt(Real dt) {
@@ -964,5 +1010,5 @@ void Hydro::physical_boundary(int dir) {
             U(i[0], i[1], i[2]) = U(k[0], k[1], k[2]);
         }
     }
-    inc_instruction_pointer(dir);
+    inc_instruction_pointer();
 }

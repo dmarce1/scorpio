@@ -76,7 +76,8 @@ private:
 	static Real d1_array[2 * INX + 1][2 * INX + 1][2 * INX + 1][3];
 	FMM* neighbors[26];
 	typedef void (FMM::*ifunc_t)(int);
-	static ifunc_t cs[FSTAGE + 1];
+    static ifunc_t fmmhydro[40];
+    static ifunc_t cs[FSTAGE + 1];
 	static ifunc_t cs_dot[FSTAGE + 1];
 	static ifunc_t cs_children[5];
 	static MPI_Datatype MPI_comm_child_poles_t[8];
@@ -91,6 +92,7 @@ private:
 	bool is_leaf(int i, int j, int k) const;
 
 public:
+    static Real substep_driver();
 	static bool solve_on;
 	static Vector<Real, 6> momentum_sum();
 	static Vector<Real, 4> com_sum();
@@ -164,10 +166,13 @@ public:
 	static bool check_for_refine();
 	static void store_pot();
 	static void update();
+	void compute_gravity_update(int dir);
 	static void account_pot();
 	static void to_conserved_energy();
 	static void from_conserved_energy();
 	static void pot_to_hydro_grid();
+	void copy_pot_to_hydro_grid(int);
+	void apply_pot_change(int);
 
 	static Real get_phi_at(Real x, Real y, Real z) {
 		Real p, tmp;

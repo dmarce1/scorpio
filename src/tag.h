@@ -25,7 +25,9 @@
 #define TAG_FMM_4FORCE 14
 #define TAG_FMM_BOUND 15
 #define TAG_FMM_EXPANSION 16
-#define TAG_MAX    17
+#define TAG_DTUP 17
+#define TAG_DTDOWN 18
+#define TAG_MAX    19
 #define SUBCYCLEMAX 16
 
 int tag_gen( int fid, int gid, int face, int subcycle = 0 );

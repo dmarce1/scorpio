@@ -6,10 +6,8 @@
 #include "../virtual_process.h"
 #include <stdlib.h>
 
-
-#define GRID_CS_SIZE 18
-#define GRID_ES_SIZE 14
-
+#define GRID_CS_SIZE 3
+#define GRID_ES_SIZE 12
 
 class Hydro: public virtual OctNode, public VirtualProcess<Hydro> {
 protected:
@@ -27,11 +25,21 @@ private:
     static MPI_Datatype MPI_guard_recv_t[6];
     static MPI_Datatype MPI_child_t[8];
 public:
+    static Real root_dt;
+    Real my_dt;
+    MPI_Request recv_dt_request[8];
+    Real recv_dt_value[8];
+    void recv_from_children_dt(int);
+     void recv_from_children_dt_wait(int);
+     void recv_from_parent_dt_wait(int);
+     void null(int) {
+        inc_instruction_pointer();
+    }
     static Real _dt, _beta;
-private:
-    Real time;
     static State FO0;
     static State FO;
+private:
+    Real time;
     Array3d<Vector<Real, STATE_NF>, GNX, GNX, GNX> F[3];
     Array3d<Vector<Real, STATE_NF>, GNX, GNX, GNX> E;
     bool amr_has[3];
@@ -47,38 +55,16 @@ private:
     static void mpi_datatypes_initialize();
     virtual void initialize() = 0;
     virtual Hydro* new_octnode() const = 0;
-    virtual void physical_boundary(int);
-    void inject_from_children_send(int);
-    void inject_from_children_recv(int);
-    void inject_from_children_send_wait(int);
-    void inject_from_children_recv_wait(int);
     void max_dt_bnd_comm(int);
     void max_dt_bnd_recv_wait(int);
     void max_dt_bnd_send_wait(int);
-    void flux_bnd_comm(int);
-    void flux_compute(int);
-    virtual void flux_physical_bounds(int);
-    void flux_bnd_recv_wait(int);
-    void flux_bnd_send_wait(int);
-    void flux_cf_adjust_send(int);
-    void flux_cf_adjust_recv(int);
-    void flux_cf_adjust_send_wait(int);
-    void flux_cf_adjust_recv_wait(int);
-    void amr_bnd_send(int);
     void enforce_dual_energy_formalism(int);
-    void amr_bnd_send_wait(int);
     void redistribute_send();
     void redistribute_recv();
-    void sync(int);
-    void error_from_parent_send(int);
-    void error_from_parent_recv(int);
-    void error_from_parent_send_wait(int);
-    void error_from_parent_recv_wait(int);
 protected:
     Array3d<State, GNX, GNX, GNX> U;
     Array3d<State, GNX, GNX, GNX> U0;
     Array3d<Vector<Real, STATE_NF>, GNX, GNX, GNX> D;
-    virtual void compute_update(int);
     static Reconstruct reconstruct;
     static Real eax;
     Array3d<State, GNX, GNX, GNX> E0;
@@ -112,9 +98,7 @@ protected:
     static void substep_driver();
     static bool check_for_refine();
     static void inject_from_children();
-    static void store();
     static void sum_outflows();
-    virtual void compute_dudt(int);
     virtual void compute_flow_off();
     virtual void create_child(const ChildIndex&);
     virtual void inject_from_parent(ChildIndex);
@@ -134,6 +118,26 @@ protected:
     static void step(Real dt);
     void reduce_dt(Real dt);
 public:
+    static void store();
+    void store_U(int dir);
+    virtual void physical_boundary(int);
+    void amr_bnd_send_wait(int);
+    void flux_bnd_comm(int);
+    void flux_compute(int);
+    virtual void flux_physical_bounds(int);
+    void flux_bnd_recv_wait(int);
+    void flux_bnd_send_wait(int);
+    void flux_cf_adjust_send(int);
+    void flux_cf_adjust_recv(int);
+    void flux_cf_adjust_send_wait(int);
+    void flux_cf_adjust_recv_wait(int);
+    void amr_bnd_send(int);
+    virtual void compute_dudt(int);
+    void inject_from_children_send(int);
+    void inject_from_children_recv(int);
+    void inject_from_children_send_wait(int);
+    void inject_from_children_recv_wait(int);
+    virtual void compute_update(int);
     void mult_dx(Real d) {
         if (get_level() == 0) {
             h0 *= d;
@@ -178,6 +182,5 @@ public:
     Hydro();
     virtual ~Hydro();
 };
-
 
 #endif /* GRID_NODE_H_ */

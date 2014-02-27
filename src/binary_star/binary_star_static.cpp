@@ -64,12 +64,15 @@ void find_eigenvectors(double q[3][3], double e[3][3], double lambda[3]) {
     }
 }
 
-void BinaryStar::compute_axis(Real dt, Real* theta, Real* theta_dot) {
+void BinaryStar::compute_axis(Real dt) {
 
     BinaryStar* g;
     Real Q[3][3] = { { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 } }, e[3][3], lambda[3];
     Real Q0[3][3] = { { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 } }, e0[3][3], lambda0[3];
     Real outbuf[6], inbuf[6];
+    Real _theta, _theta_dot;
+    Real* theta = &_theta;
+    Real* theta_dot = &_theta_dot;
     int cnt;
     double tstart = MPI_Wtime();
     for (int l = 0; l < get_local_node_cnt(); l++) {
@@ -439,7 +442,6 @@ void BinaryStar::find_rho_max(Real* rho1, Real* rho2) {
     MPI_Allreduce(&tmp, rho2, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD );
 }
 
-#ifdef ZTWD
 Real BinaryStar::find_K(int frac, Real phi0, Real center, Real l1_x, Real* span) {
     BinaryStar* g;
     const Real n = 1.5;
@@ -502,59 +504,6 @@ Real BinaryStar::find_K(int frac, Real phi0, Real center, Real l1_x, Real* span)
     return A;
 }
 
-#else
-
-Real BinaryStar::find_K(int frac, Real phi0, Real center, Real l1_x, Real* span) {
-    BinaryStar* g;
-    const Real n = 1.5;
-    Real K, M, tmp, dv, xmin, xmax;
-    _3Vec x0, dx, x;
-    bool test;
-    x0 = 0.0;
-    x0[0] = center;
-    if (frac == 0) {
-        M = M1;
-    } else {
-        M = M2;
-    }
-    xmin = 1.0e+99;
-    xmax = -1.0e-99;
-    Real dphi;
-    K = 0.0;
-    for (int l = 0; l < get_local_node_cnt(); l++) {
-        g = dynamic_cast<BinaryStar*>(get_local_node(l));
-        dv = pow(g->get_dx(), 3);
-        for (int k = BW; k < GNX - BW; k++) {
-            for (int j = BW; j < GNX - BW; j++) {
-                for (int i = BW; i < GNX - BW; i++) {
-                    if (!g->zone_is_refined(i, j, k)) {
-                        x = g->X(i, j, k);
-                        dx = x - x0;
-                        test = ((frac == 0 && x[0] > l1_x) || (frac == 1 && x[0] < l1_x));
-                        if (test && (g->geff(i, j, k)).dot(dx) < 0.0) {
-                            dphi = phi0 - (*g)(i, j, k).phi_eff();
-                            if (dphi > 0.0) {
-                                K += pow(dphi / ((n + 1.0)), n) * dv;
-                                xmax = max(xmax, x[0]);
-                                xmin = min(xmin, x[0]);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    tmp = K;
-    MPI_Allreduce(&tmp, &K, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD );
-    tmp = xmax;
-    MPI_Allreduce(&tmp, &xmax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD );
-    tmp = xmin;
-    MPI_Allreduce(&tmp, &xmin, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD );
-    K = pow(K / M, 1.0 / n);
-    *span = xmax - xmin;
-    return K;
-}
-#endif
 
 void BinaryStar::find_mass(int frac, Real* mass, _3Vec* com_ptr) {
     BinaryStar* g;
@@ -860,7 +809,6 @@ void BinaryStar::read_from_file(const char* str, int* i1, int* i2) {
     MPI_File fh;
     PhysicalConstants::set_cgs();
     char* fname;
-    Real omega;
     FILE* fp;
     _3Vec O;
     asprintf(&fname, "./checkpoint/%s.%i.bin", str, MPI_rank());
@@ -1123,7 +1071,7 @@ void BinaryStar::analyze() {
 
 #define RK2
 
-void BinaryStar::step(Real dt) {
+Real BinaryStar::step() {
     Real start_time;
 #ifdef RK2
     Real beta[2] = { 1.0, 1.0 / 2.0 };
@@ -1132,29 +1080,29 @@ void BinaryStar::step(Real dt) {
     Real beta[3] = {1.0, 0.25, 2.0 / 3.0};
     const int nstep = 2;
 #endif
-    Hydro::set_dt(dt);
     store();
     store_pot();
     Real dtheta0 = dtheta;
     Real omega0 = State::omega;
+    Real dt;
     for (int i = 0; i < nstep; i++) {
         Hydro::set_beta(beta[i]);
         start_time = MPI_Wtime();
-        substep_driver();
-        FMM_solve_dot();
-        update();
+         dt=FMM::substep_driver();
+          //    FMM_solve_dot();
+    //    update();
         dtheta = (dtheta + dt * (State::omega - State::omega0)) * beta[i] + dtheta0 * (1.0 - beta[i]);
         //  State::omega = (State::omega + dt * State::omega_dot) * beta[i] + omega0 * (1.0 - beta[i]);
-        FMM_solve();
-        account_pot();
+      //  FMM_solve();
+      //  account_pot();
     }
     Real theta, dethea;
     adjust_frame(dt);
-    compute_axis(dt, &theta, &dtheta);
+    compute_axis(dt);
     FMM_from_children();
     pot_to_hydro_grid();
     set_time(get_time() + dt);
-
+return dt;
 }
 
 #include "parameter_reader.h"
@@ -1224,7 +1172,7 @@ void BinaryStar::run(int argc, char* argv[]) {
     State sum;
     if (get_time() == 0.0) {
         FMM_solve();
-        get_root()->output("./output/X", 0.0, GNX, BW, dtheta);
+        get_root()->output("./output/X", 0.0, GNX, BW);
         integrate_conserved_variables(&sum);
         lz_t0 = sum[State::lz_index];
     }
@@ -1255,8 +1203,12 @@ void BinaryStar::run(int argc, char* argv[]) {
                 write_to_file(step_cnt, ostep_cnt, "goodbye");
             }
         }
-        dt = next_dt(&do_output, &last_step, &ostep_cnt, ofreq);
-        step(dt);
+       /* dt = next_dt(&do_output, &last_step, &ostep_cnt, ofreq);
+        if (dt < 0.0) {
+            printf("Negative DT\n");
+            abort();
+        }*/
+        dt=step();
         //compute_omega_dot(dt);
         pot_to_hydro_grid();
         Real theta, theta_dot;
@@ -1274,10 +1226,6 @@ void BinaryStar::run(int argc, char* argv[]) {
 
         if (get_root()->get_max_level() < get_root()->get_max_level_allowed()) {
             printf("FATAL ERROR DETECTED - levels\n");
-            abort();
-        }
-        if (dt < 0.0) {
-            printf("Negative DT\n");
             abort();
         }
 
@@ -1302,16 +1250,17 @@ void BinaryStar::run(int argc, char* argv[]) {
                     MPI_Wtime() - time_start, BinaryStar::refine_floor);
         }
         time_start = MPI_Wtime();
-        if (do_output) {
+   //     get_root()->output("./X", step_cnt, GNX, BW, dtheta);
+      if (do_output) {
             if (MPI_rank() == 0) {
                 printf("*");
             }
-            get_root()->output("./output/X", nint(Hydro::get_time() / ofreq), GNX, BW, dtheta);
-        }
+            get_root()->output("./output/X", nint(Hydro::get_time() / ofreq), GNX, BW);
+         }
         if (MPI_rank() == 0) {
             printf("\n");
         }
-    } while (!last_step);
+    } while (true);
     /*if (MPI_rank() == 0) {
      char* str;
      if (asprintf(&str, "time.%i.txt", get_max_level_allowed()) == 0) {

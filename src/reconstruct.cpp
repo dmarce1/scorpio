@@ -11,7 +11,7 @@ Reconstruct::~Reconstruct() {
 }
 
 
-void Reconstruct::operator()(State q0[GNX], State ql[GNX], State qr[GNX]) const {
+void Reconstruct::operator()(State q0[GNX], State qr[GNX], State ql[GNX]) const {
     State s[GNX];
     int i, l;
     Real tmp1, tmp2;

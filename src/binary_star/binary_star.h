@@ -14,7 +14,7 @@
 class BinaryStar: public FMM {
 public:
     Array3d<Real, GNX, GNX, GNX> euler_force_coeff;
-    static void compute_axis(Real, Real* theta, Real* theta_dot);
+    static void compute_axis(Real);
     static void compute_omega_dot(Real);
     static Real compute_I();
     static Real compute_Idot();
@@ -26,7 +26,7 @@ public:
     static bool bparam_init;
     virtual void physical_boundary(int);
 private:
-    static void step(Real dt);
+    static Real step();
     static Real dtheta;
     static Real refine_floor;
     static Real code_to_cm, code_to_s, code_to_K, code_to_g;

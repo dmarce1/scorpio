@@ -20,15 +20,29 @@ State Hydro::FO = Vector<Real, STATE_NF>(0.0);
 State Hydro::DFO = Vector<Real, STATE_NF>(0.0);
 
 Hydro::ifunc_t Hydro::es[GRID_ES_SIZE] = { &Hydro::inject_from_children_recv, &Hydro::inject_from_children_recv_wait,
-        &Hydro::inject_from_children_send, &Hydro::inject_from_children_send_wait, &Hydro::sync, &Hydro::flux_bnd_comm,
+        &Hydro::inject_from_children_send, &Hydro::inject_from_children_send_wait,  &Hydro::flux_bnd_comm,
         &Hydro::physical_boundary, &Hydro::flux_bnd_recv_wait, &Hydro::flux_bnd_send_wait, &Hydro::amr_bnd_send, &Hydro::amr_bnd_send_wait,
-        &Hydro::sync, &Hydro::enforce_dual_energy_formalism, &Hydro::max_dt_compute };
+         &Hydro::enforce_dual_energy_formalism, &Hydro::max_dt_compute };
 
-Hydro::ifunc_t Hydro::cs[GRID_CS_SIZE] = { &Hydro::flux_bnd_comm, &Hydro::physical_boundary, &Hydro::flux_bnd_recv_wait,
-        &Hydro::flux_bnd_send_wait, &Hydro::amr_bnd_send, &Hydro::amr_bnd_send_wait, &Hydro::flux_compute, &Hydro::flux_cf_adjust_recv,
-        &Hydro::flux_cf_adjust_recv_wait, &Hydro::flux_cf_adjust_send, &Hydro::flux_cf_adjust_send_wait, &Hydro::sync, &Hydro::compute_dudt,
-        &Hydro::compute_update, &Hydro::inject_from_children_recv, &Hydro::inject_from_children_recv_wait, &Hydro::inject_from_children_send,
-        &Hydro::inject_from_children_send_wait };
+Hydro::ifunc_t Hydro::cs[GRID_CS_SIZE] = {
+ //       &Hydro::flux_bnd_comm,
+  //      &Hydro::physical_boundary,
+  //      &Hydro::flux_bnd_recv_wait,
+   //     &Hydro::flux_bnd_send_wait,
+    //    &Hydro::amr_bnd_send,
+     //   &Hydro::amr_bnd_send_wait,
+        &Hydro::flux_compute,
+   //     &Hydro::flux_cf_adjust_recv,
+    //    &Hydro::flux_cf_adjust_recv_wait,
+     //   &Hydro::flux_cf_adjust_send,
+      //  &Hydro::flux_cf_adjust_send_wait,
+        &Hydro::compute_dudt,
+        &Hydro::compute_update,
+ //       &Hydro::inject_from_children_recv,
+  //      &Hydro::inject_from_children_recv_wait,
+   //     &Hydro::inject_from_children_send,
+    //    &Hydro::inject_from_children_send_wait
+        };
 
 Hydro::ifunc_t Hydro::cs_children[4] = { &Hydro::inject_from_children_recv, &Hydro::inject_from_children_recv_wait,
         &Hydro::inject_from_children_send, &Hydro::inject_from_children_send_wait };
@@ -120,12 +134,13 @@ Real Hydro::next_dt(bool* do_output, bool* last_step, int* ostep_cnt, Real freq)
         (*ostep_cnt)++;
         *do_output = true;
     } else {
-        //	printf( "dt = %e\n", dt);
-        //	printf( "next_output_time = %e\n", next_output_time);
-        //	printf( "HydroGrid::get_time() = %e\n", HydroGrid::get_time());
-        dt = min(dt, (next_output_time - Hydro::get_time()) / Real(int((next_output_time - Hydro::get_time()) / dt + 1.0)));
+       // printf( "dt = %e\n", dt);
+       //	printf( "next_output_time = %e\n", next_output_time);
+       // 	printf( "HydroGrid::get_time() = %e\n", get_time());
+        dt = min(dt, (next_output_time - Hydro::get_time()) / Real((long long int)((next_output_time - Hydro::get_time()) / dt + 1.0)));
         dt *= (1.0 + 1.0e-9);
-    }
+    //    printf( "-------dt = %e\n", dt);
+     }
     if (tleft <= dt) {
         dt = tleft;
         *last_step = true;
@@ -248,7 +263,7 @@ void Hydro::substep_driver() {
     for (int i = 0; i < get_local_node_cnt(); i++) {
         list[i] = dynamic_cast<Hydro*>(get_local_node(i));
     }
-    run_program(list, get_local_node_cnt(), cs, GRID_CS_SIZE, 3);
+    run_program(list, get_local_node_cnt(), cs, GRID_CS_SIZE);
     delete[] list;
     Real tmp[STATE_NF];
     for (int i = 0; i < STATE_NF; i++) {
@@ -270,7 +285,7 @@ void Hydro::inject_from_children() {
     for (int i = 0; i < get_local_node_cnt(); i++) {
         list[i] = dynamic_cast<Hydro*>(get_local_node(i));
     }
-    run_program(list, get_local_node_cnt(), cs_children, 4, 1);
+    run_program(list, get_local_node_cnt(), cs_children, 4);
     delete[] list;
 
 }
@@ -282,11 +297,12 @@ Real Hydro::max_dt_driver() {
     for (int i = 0; i < get_local_node_cnt(); i++) {
         list[i] = dynamic_cast<Hydro*>(get_local_node(i));
     }
-    run_program(list, get_local_node_cnt(), es, GRID_ES_SIZE, 3);
+    run_program(list, get_local_node_cnt(), es, GRID_ES_SIZE);
     delete[] list;
     dt = eax;
     MPI_Allreduce(&dt, &dt_all, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD );
     dt = dt_all;
+    //    printf( "dt=%e\n", dt);
     return dt;
 }
 
@@ -296,7 +312,7 @@ void Hydro::boundary_driver() {
     for (int i = 0; i < get_local_node_cnt(); i++) {
         list[i] = dynamic_cast<Hydro*>(get_local_node(i));
     }
-    run_program(list, get_local_node_cnt(), es, GRID_ES_SIZE - 2, 3);
+    run_program(list, get_local_node_cnt(), es, GRID_ES_SIZE - 2);
     delete[] list;
 }
 
