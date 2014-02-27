@@ -4,16 +4,11 @@
 
 #include "../real.h"
 
-//#define REFINE_ACC_MORE
-//#define USE_FMM
 #define DRIVING_TIME        0.0
 
 
 
-
-#ifdef USE_FMM
 #define  RANK_ZERO_HAS_ONE_GRID
-#endif
 
 #define DRIVING             0.01
 #define GCON 1.0

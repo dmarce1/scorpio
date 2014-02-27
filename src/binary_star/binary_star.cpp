@@ -1,5 +1,6 @@
 #include "lane_emden.h"
 #include "binary_star.h"
+#include "indexer3d.h"
 
 #include "dwd.h"
 
@@ -169,9 +170,6 @@ void BinaryStar::initialize() {
         State::rho_floor = 1.0e-12 * bparam.rho1;
         refine_floor = 1.0e-4 * bparam.rho2;
         dynamic_cast<HydroGrid*>(get_root())->HydroGrid::mult_dx(bparam.a * 2.0);
-#ifndef USE_FMM
-        dynamic_cast<MultiGrid*>(get_root())->MultiGrid::mult_dx(bparam.a * 2.0);
-#endif
         State::set_omega(bparam.omega);
     }
     for (int k = BW - 1; k < GNX - BW + 1; k++) {

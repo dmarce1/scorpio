@@ -886,6 +886,10 @@ Real FMM::g_energy(int ii, int jj, int kk) const {
     return (term2 - term1) * 0.5 * dvinv;
 }
 
+Real FMM::set_phi(int i, int j, int k, Real phi) {
+    return _4force(i + FBW - BW, j + FBW - BW, k + FBW - BW).phi = phi;
+}
+
 Real FMM::get_phi(int i, int j, int k) const {
     return _4force(i + FBW - BW, j + FBW - BW, k + FBW - BW).phi;
 }

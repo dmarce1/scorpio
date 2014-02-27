@@ -122,7 +122,8 @@ public:
 	virtual void compute_update(int dir);
 	//	virtual void compute_dudt(int dir);
 	static void step(Real dt);
-	Real get_phi(int i, int j, int k) const;
+    Real set_phi(int i, int j, int k,double);
+    Real get_phi(int i, int j, int k) const;
 	Real get_dphi_dt(int i, int j, int k) const;
 	Real get_drho_dt(int i, int j, int k) const;
 	static void FMM_from_children();

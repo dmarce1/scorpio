@@ -101,14 +101,13 @@ void frame_read(frame_t* frame, const char* filename) {
 void BinaryStar::add_data_point(double x, double y, double z, double h, const State& s, double phi0) {
     // printf("%i\n", get_level());
     //   printf("%e %e\n", get_dx(), h);
-#ifndef USE_FMM
     BinaryStar::set_max_level_allowed(get_level() + 1);
     if (fabs(get_dx() - h) < 1.0e-3 * h) {
         int i = int(((x - HydroGrid::xf(0)) / h));
         int j = int(((y - HydroGrid::yf(0)) / h));
         int k = int(((z - HydroGrid::zf(0)) / h));
         U(i, j, k) = s;
-        phi(i + 1 - BW, j + 1 - BW, k + 1 - BW) = phi0;
+        set_phi(i + 1 - BW, j + 1 - BW, k + 1 - BW, phi0);
     } else {
         ChildIndex c;
         c.set_x(int(((x - HydroGrid::xf(0)) / get_dx() / double(GNX / 2))));
@@ -119,7 +118,6 @@ void BinaryStar::add_data_point(double x, double y, double z, double h, const St
         }
         dynamic_cast<BinaryStar*>(get_child(c))->add_data_point(x, y, z, h, s, phi0);
     }
-#endif
 }
 
 void BinaryStar::read_silo(const char* name) {
@@ -156,9 +154,6 @@ void BinaryStar::read_silo(const char* name) {
     //  abort();
     double range = (xmax[0] - xmin[0]) / 2.0;
     dynamic_cast<HydroGrid*>(get_root())->HydroGrid::mult_dx(range);
-#ifndef USE_FMM
-    dynamic_cast<MultiGrid*>(get_root())->MultiGrid::mult_dx(range);
-#endif
     set_origin(O);
 
     for (int i = 0; i < frame.node_count; i++) {
@@ -177,7 +172,6 @@ void BinaryStar::read_silo(const char* name) {
         dynamic_cast<BinaryStar*>(get_root())->set_time(frame.time);
     }
     dynamic_cast<BinaryStar*>(get_root())->find_local_nodes();
-    printf("done!\n");
     printf("%i grids read\n", dynamic_cast<BinaryStar*>(get_root())->get_node_cnt());
 }
 #endif

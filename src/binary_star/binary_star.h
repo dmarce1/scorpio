@@ -7,17 +7,11 @@
 
 #ifndef BINARY_STAR_H_
 #define BINARY_STAR_H_
-
-#include "../hydro_grav_grid/hydro_grav_grid.h"
 #include "../FMM/FMM.h"
 #include "dwd.h"
 
 #ifdef HYDRO_GRAV_GRID
-#ifdef USE_FMM
 class BinaryStar: public FMM {
-#else
-    class BinaryStar: public HydroGravGrid {
-#endif
 public:
     Array3d<Real, GNX, GNX, GNX> euler_force_coeff;
     static void compute_axis(Real, Real* theta, Real* theta_dot);
@@ -119,17 +113,6 @@ public:
             return U.et() + U.rot_pot(x) + State::omega * U.lz();
         case 9:
             return U[State::tau_index];
-#ifndef USE_FMM
-            case 10:
-            return get_phi(i - BW + 1, j - BW + 1, k - BW + 1);
-            case 11:
-            return cosx * gx(i, j, k) + sinx * gy(i, j, k);
-            case 12:
-            return glz(i, j, k);
-            case 13:
-            return gz(i, j, k);
-        }
-#else
         case 10:
             return get_phi(i, j, k);
         case 11:
@@ -139,7 +122,6 @@ public:
         case 13:
             return gz(i, j, k);
         }
-#endif
         assert(false);
         return 0.0;
     }
