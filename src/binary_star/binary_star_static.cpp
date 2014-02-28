@@ -504,7 +504,6 @@ Real BinaryStar::find_K(int frac, Real phi0, Real center, Real l1_x, Real* span)
     return A;
 }
 
-
 void BinaryStar::find_mass(int frac, Real* mass, _3Vec* com_ptr) {
     BinaryStar* g;
     Real M, tmp[3], com[3] = { 0.0, 0.0, 0.0 }, dm, dv, tmp0;
@@ -647,8 +646,8 @@ void BinaryStar::scf_run(int argc, char* argv[]) {
                     for (int i = BW; i < GNX - BW; i++) {
                         Real R2 = g0->Hydro::xc(i) * g0->Hydro::xc(i) + g0->Hydro::yc(j) * g0->Hydro::yc(j);
                         Real phi_eff = g0->get_phi(i - o, j - o, k - o) - 0.5 * o2 * R2;
-                        if ((g0->Hydro::xc(i) >= xm_d)
-                                && (g0->geff(i, j, k).dot(g0->X(i, j, k) - XC_d) < 0.0 || (g0->X(i, j, k) - XC_d).mag() < 2.0 * min_dx) && (phi_eff < C_d)) {
+                        if ((g0->Hydro::xc(i) >= xm_d) && (g0->geff(i, j, k).dot(g0->X(i, j, k) - XC_d) < 0.0 || (g0->X(i, j, k) - XC_d).mag() < 2.0 * min_dx)
+                                && (phi_eff < C_d)) {
                             h = max(C_d - phi_eff, 0.0);
                             new_rho = B * pow(pow(h * Bover8A + 1.0, 2) - 1.0, 1.5);
                         } else if ((g0->Hydro::xc(i) <= xm_d)
@@ -1088,13 +1087,13 @@ Real BinaryStar::step() {
     for (int i = 0; i < nstep; i++) {
         Hydro::set_beta(beta[i]);
         start_time = MPI_Wtime();
-         dt=FMM::substep_driver();
-          //    FMM_solve_dot();
-    //    update();
+        dt = FMM::substep_driver();
+        //    FMM_solve_dot();
+        //    update();
         dtheta = (dtheta + dt * (State::omega - State::omega0)) * beta[i] + dtheta0 * (1.0 - beta[i]);
         //  State::omega = (State::omega + dt * State::omega_dot) * beta[i] + omega0 * (1.0 - beta[i]);
-      //  FMM_solve();
-      //  account_pot();
+        //  FMM_solve();
+        //  account_pot();
     }
     Real theta, dethea;
     adjust_frame(dt);
@@ -1102,7 +1101,7 @@ Real BinaryStar::step() {
     FMM_from_children();
     pot_to_hydro_grid();
     set_time(get_time() + dt);
-return dt;
+    return dt;
 }
 
 #include "parameter_reader.h"
@@ -1136,7 +1135,7 @@ void BinaryStar::run(int argc, char* argv[]) {
         MPI_rank() ? 0 : printf("Invoking SCF for M1=%f and M2=%f\n", bparam.m1, bparam.m2);
         scf_run(argc, argv);
         return;
-    } else if (read_parameter(argc, argv, "analyze", restart_name,1024)) {
+    } else if (read_parameter(argc, argv, "analyze", restart_name, 1024)) {
         read_silo(restart_name);
         Hydro::redistribute_grids();
         analyze();
@@ -1203,12 +1202,13 @@ void BinaryStar::run(int argc, char* argv[]) {
                 write_to_file(step_cnt, ostep_cnt, "goodbye");
             }
         }
-       /* dt = next_dt(&do_output, &last_step, &ostep_cnt, ofreq);
-        if (dt < 0.0) {
-            printf("Negative DT\n");
-            abort();
-        }*/
-        dt=step();
+        dt = step();
+        if (Hydro::get_time() >= Real(ostep_cnt + 1) * ofreq) {
+            ostep_cnt++;
+            do_output = true;
+        } else {
+            do_output=false;
+        }
         //compute_omega_dot(dt);
         pot_to_hydro_grid();
         Real theta, theta_dot;
@@ -1250,29 +1250,19 @@ void BinaryStar::run(int argc, char* argv[]) {
                     MPI_Wtime() - time_start, BinaryStar::refine_floor);
         }
         time_start = MPI_Wtime();
-   //     get_root()->output("./X", step_cnt, GNX, BW, dtheta);
-      if (do_output) {
+        //     get_root()->output("./X", step_cnt, GNX, BW, dtheta);
+        if (do_output) {
             if (MPI_rank() == 0) {
                 printf("*");
             }
-            get_root()->output("./output/X", nint(Hydro::get_time() / ofreq), GNX, BW);
-         }
+           // printf( "%e %e\n", Hydro::get_time() , ofreq);
+            get_root()->output("./output/X", ostep_cnt, GNX, BW);
+        }
         if (MPI_rank() == 0) {
             printf("\n");
         }
     } while (true);
-    /*if (MPI_rank() == 0) {
-     char* str;
-     if (asprintf(&str, "time.%i.txt", get_max_level_allowed()) == 0) {
-     printf("Unable to create filename\n");
-     } else {
-     FILE* fp = fopen(str, "at");
-     fprintf(fp, "%i %e %e %e %e\n", MPI_size(), hydro_time + poisson_boundary_time + poisson_interior_time, hydro_time, poisson_boundary_time,
-     poisson_interior_time);
-     fclose(fp);
-     free(str);
-     }
-     }*/
+
 }
 
 void BinaryStar::integrate_conserved_variables(Vector<Real, STATE_NF>* sum_ptr) {

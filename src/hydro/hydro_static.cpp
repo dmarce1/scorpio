@@ -130,10 +130,10 @@ Real Hydro::next_dt(bool* do_output, bool* last_step, int* ostep_cnt, Real freq)
     tleft = TIME_MAX - Hydro::get_time();
     next_output_time = Real(*ostep_cnt + 1) * freq;
     if (dt + Hydro::get_time() >= next_output_time) {
-        dt = next_output_time - Hydro::get_time();
-        (*ostep_cnt)++;
-        *do_output = true;
-    } else {
+         dt = next_output_time - Hydro::get_time();
+         (*ostep_cnt)++;
+         *do_output = true;
+     } else {
        // printf( "dt = %e\n", dt);
        //	printf( "next_output_time = %e\n", next_output_time);
        // 	printf( "HydroGrid::get_time() = %e\n", get_time());
