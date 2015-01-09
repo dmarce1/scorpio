@@ -6,6 +6,9 @@
  */
 
 #include "FMM.h"
+
+#ifdef USE_FMM
+
 #include "../tag.h"
 #include <mpi.h>
 #include <omp.h>
@@ -144,7 +147,11 @@ void FMM::moments_recv_dot(int) {
             for (int k = zlb; k <= zub; k++) {
                 for (int j = ylb; j <= yub; j++) {
                     for (int i = xlb; i <= xub; i++) {
-                        poles_dot(i, j, k).M_dot() = this->get_dudt(i + BW - FBW, j + BW - FBW, k + BW - FBW)[State::d_index] * dv;
+                        Real rnf = 0.0;
+                        for (int fi = 0; fi < NFRAC; fi++) {
+                            rnf += get_dudt(i + BW - FBW, j + BW - FBW, k + BW - FBW)[State::frac_index + fi];
+                        }
+                        poles_dot(i, j, k).M_dot() = rnf * dv;
                     }
                 }
             }
@@ -155,7 +162,7 @@ void FMM::moments_recv_dot(int) {
 
 void FMM::moments_recv_wait(int) {
     int flag;
-    MPI_Testall(8, recv_request, &flag, MPI_STATUS_IGNORE );
+    MPI_Testall(8, recv_request, &flag, MPI_STATUS_IGNORE);
     if (flag) {
         inc_instruction_pointer();
     }
@@ -216,7 +223,8 @@ void FMM::moments_send(int) {
                     cnt++;
                 }
             }
-        }assert(cnt==INX * INX * INX / 8);
+        }
+        assert(cnt==INX * INX * INX / 8);
         int tag = tag_gen(TAG_FMM_MOMENT, get_parent()->get_id(), my_child_index());
         MPI_Isend(moment_buffer, cnt * sizeof(multipole_t), MPI_BYTE, get_parent()->proc(), tag, MPI_COMM_WORLD, send_request);
     }
@@ -251,7 +259,8 @@ void FMM::moments_send_dot(int) {
                     cnt++;
                 }
             }
-        }assert(cnt==INX * INX * INX / 8);
+        }
+        assert(cnt==INX * INX * INX / 8);
         int tag = tag_gen(TAG_FMM_MOMENT, get_parent()->get_id(), my_child_index());
         MPI_Isend(moment_dot_buffer, cnt * sizeof(multipole_dot_t), MPI_BYTE, get_parent()->proc(), tag, MPI_COMM_WORLD, send_request);
     }
@@ -261,7 +270,7 @@ void FMM::moments_send_dot(int) {
 void FMM::moments_send_wait(int) {
     int flag;
     if (get_level() != 0) {
-        MPI_Test(send_request, &flag, MPI_STATUS_IGNORE );
+        MPI_Test(send_request, &flag, MPI_STATUS_IGNORE);
         if (flag) {
             delete[] moment_buffer;
             inc_instruction_pointer();
@@ -273,7 +282,7 @@ void FMM::moments_send_wait(int) {
 void FMM::moments_send_wait_dot(int) {
     int flag;
     if (get_level() != 0) {
-        MPI_Test(send_request, &flag, MPI_STATUS_IGNORE );
+        MPI_Test(send_request, &flag, MPI_STATUS_IGNORE);
         if (flag) {
             delete[] moment_dot_buffer;
             inc_instruction_pointer();
@@ -328,7 +337,7 @@ void FMM::moments_communicate_all_dot(int) {
 void FMM::moments_communicate_wait_all(int) {
     int flag_recv;
     bool ready;
-    MPI_Testall(26, recv_request, &flag_recv, MPI_STATUS_IGNORE );
+    MPI_Testall(26, recv_request, &flag_recv, MPI_STATUS_IGNORE);
     ready = flag_recv;
     if (ready) {
         inc_instruction_pointer();
@@ -529,7 +538,7 @@ void FMM::expansion_recv_wait(int) {
     int cnt;
     if (get_level() != 0) {
         int flag;
-        MPI_Test(recv_request, &flag, MPI_STATUS_IGNORE );
+        MPI_Test(recv_request, &flag, MPI_STATUS_IGNORE);
         rc = flag;
         if (rc) {
             cnt = 0;
@@ -613,7 +622,7 @@ void FMM::expansion_recv_wait_dot(int) {
     int cnt;
     if (get_level() != 0) {
         int flag;
-        MPI_Test(recv_request, &flag, MPI_STATUS_IGNORE );
+        MPI_Test(recv_request, &flag, MPI_STATUS_IGNORE);
         rc = flag;
         if (rc) {
             cnt = 0;
@@ -724,7 +733,7 @@ Real FMM::substep_driver() {
                 }
             }
         } while (!done);
-        MPI_Bcast(&root_dt, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD );
+        MPI_Bcast(&root_dt, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
         Hydro::set_dt(root_dt);
 
     }
@@ -745,7 +754,7 @@ Real FMM::substep_driver() {
         tmp[i] = DFO[i];
     }
     Real tmp2[STATE_NF];
-    MPI_Allreduce(tmp, tmp2, STATE_NF, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD );
+    MPI_Allreduce(tmp, tmp2, STATE_NF, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
     for (int i = 0; i < STATE_NF; i++) {
         DFO[i] = tmp2[i];
     }
@@ -875,7 +884,7 @@ void FMM::_4force_recv(int) {
 
 void FMM::_4force_recv_wait(int) {
     int flag;
-    MPI_Testall(8, recv_request, &flag, MPI_STATUS_IGNORE );
+    MPI_Testall(8, recv_request, &flag, MPI_STATUS_IGNORE);
     if (flag) {
         inc_instruction_pointer();
     }
@@ -907,7 +916,8 @@ void FMM::_4force_send(int) {
                     cnt++;
                 }
             }
-        }assert(cnt==INX * INX * INX / 8);
+        }
+        assert(cnt==INX * INX * INX / 8);
         int tag = tag_gen(TAG_FMM_4FORCE, get_parent()->get_id(), my_child_index());
         MPI_Isend(_4force_buffer, cnt * sizeof(_4force_t), MPI_BYTE, get_parent()->proc(), tag, MPI_COMM_WORLD, send_request);
     }
@@ -916,7 +926,7 @@ void FMM::_4force_send(int) {
 void FMM::_4force_send_wait(int) {
     int flag;
     if (get_level() != 0) {
-        MPI_Test(send_request, &flag, MPI_STATUS_IGNORE );
+        MPI_Test(send_request, &flag, MPI_STATUS_IGNORE);
         if (flag) {
             delete[] _4force_buffer;
             inc_instruction_pointer();
@@ -1007,6 +1017,14 @@ bool FMM::check_for_refine() {
         FMM_from_children();
     }
     from_conserved_energy();
+
+    if (dynamic_cast<Hydro*>(get_root())->check_for_expand()) {
+        Hydro::redistribute_grids();
+//        OctNode::check_for_refine();
+        inject_from_children();
+        FMM_solve();
+    }
+
     return rc;
 
 }
@@ -1096,7 +1114,7 @@ void FMM::update() {
                 for (int i = BW; i < GNX - BW; i++) {
                     g0->U(i, j, k)[State::et_index] += g0->dpot(i, j, k);
                     g0->U(i, j, k) = (g0->U(i, j, k) + g0->D(i, j, k) * _dt) * _beta + g0->U0(i, j, k) * (1.0 - _beta);
-                    g0->U(i, j, k).floor(g0->X(i, j, k));
+                    g0->U(i, j, k).floor(g0->X(i, j, k), g0->get_dx());
                 }
             }
         }
@@ -1127,7 +1145,7 @@ void FMM::compute_gravity_update(int) {
             for (int i = BW; i < GNX - BW; i++) {
                 U(i, j, k)[State::et_index] += dpot(i, j, k);
                 U(i, j, k) = (U(i, j, k) + D(i, j, k) * _dt) * _beta + U0(i, j, k) * (1.0 - _beta);
-                U(i, j, k).floor(X(i, j, k));
+                U(i, j, k).floor(X(i, j, k), get_dx());
             }
         }
     }
@@ -1161,7 +1179,7 @@ _3Vec FMM::system_com() {
     send[1] = mx;
     send[2] = my;
     send[3] = mz;
-    MPI_Allreduce(send, recv, 4, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD );
+    MPI_Allreduce(send, recv, 4, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
     mtot = recv[0];
     mx = recv[1];
     my = recv[2];
@@ -1242,21 +1260,21 @@ Vector<Real, 6> FMM::momentum_sum() {
     sum0[0] = sum[0];
     sum0[1] = sum[1];
     sum0[2] = sum[2];
-    MPI_Allreduce(sum0, sum, 3, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD );
-    MPI_Allreduce(&norm0, &norm, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD );
-    MPI_Allreduce(&lz0, &lz, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD );
+    MPI_Allreduce(sum0, sum, 3, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&norm0, &norm, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&lz0, &lz, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
     lz0 = energy;
-    MPI_Allreduce(&lz0, &energy, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD );
+    MPI_Allreduce(&lz0, &energy, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
     lz0 = norme;
-    MPI_Allreduce(&lz0, &norme, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD );
+    MPI_Allreduce(&lz0, &norme, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
     lz0 = sx2;
-    MPI_Allreduce(&lz0, &sx2, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD );
+    MPI_Allreduce(&lz0, &sx2, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
     lz0 = sy2;
-    MPI_Allreduce(&lz0, &sy2, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD );
+    MPI_Allreduce(&lz0, &sy2, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
     lz0 = lz2;
-    MPI_Allreduce(&lz0, &lz2, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD );
+    MPI_Allreduce(&lz0, &lz2, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
     norm0 = norml;
-    MPI_Allreduce(&norm0, &norml, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD );
+    MPI_Allreduce(&norm0, &norml, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
     if (MPI_rank() == 0 && energy != 0.0) {
         printf("Momentum Sum = %e %e %e %e %e %e %e %e\n", sum[0] / norm, sum[1] / norm, sum[2] / norm, lz / norml, lz2 / norml, energy, norme, energy / norme);
     }
@@ -1299,7 +1317,7 @@ Vector<Real, 4> FMM::com_sum() {
     sum0[1] = sum[1];
     sum0[2] = sum[2];
     sum0[3] = sum[3];
-    MPI_Allreduce(sum0, sum, 4, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD );
+    MPI_Allreduce(sum0, sum, 4, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
     sum[0] /= sum[3];
     sum[1] /= sum[3];
     sum[2] /= sum[3];
@@ -1748,3 +1766,5 @@ void FMM::MPI_datatypes_init() {
         initialized = true;
     }
 }
+
+#endif

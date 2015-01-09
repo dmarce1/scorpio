@@ -3,7 +3,6 @@
 #include "../virtual_process.h"
 #include "../defs.h"
 
-
 MPI_Datatype Hydro::MPI_interior_t;
 MPI_Datatype Hydro::MPI_state_t;
 MPI_Datatype Hydro::MPI_guard_send_t[6];
@@ -19,33 +18,31 @@ State Hydro::FO0 = Vector<Real, STATE_NF>(0.0);
 State Hydro::FO = Vector<Real, STATE_NF>(0.0);
 State Hydro::DFO = Vector<Real, STATE_NF>(0.0);
 
-Hydro::ifunc_t Hydro::es[GRID_ES_SIZE] = { &Hydro::inject_from_children_recv, &Hydro::inject_from_children_recv_wait,
-        &Hydro::inject_from_children_send, &Hydro::inject_from_children_send_wait,  &Hydro::flux_bnd_comm,
-        &Hydro::physical_boundary, &Hydro::flux_bnd_recv_wait, &Hydro::flux_bnd_send_wait, &Hydro::amr_bnd_send, &Hydro::amr_bnd_send_wait,
-         &Hydro::enforce_dual_energy_formalism, &Hydro::max_dt_compute };
+Hydro::ifunc_t Hydro::es[GRID_ES_SIZE] = { &Hydro::inject_from_children_recv, &Hydro::inject_from_children_recv_wait, &Hydro::inject_from_children_send,
+        &Hydro::inject_from_children_send_wait, &Hydro::flux_bnd_comm, &Hydro::physical_boundary, &Hydro::flux_bnd_recv_wait, &Hydro::flux_bnd_send_wait,
+        &Hydro::amr_bnd_send, &Hydro::amr_bnd_send_wait, &Hydro::enforce_dual_energy_formalism, &Hydro::max_dt_compute };
 
 Hydro::ifunc_t Hydro::cs[GRID_CS_SIZE] = {
- //       &Hydro::flux_bnd_comm,
-  //      &Hydro::physical_boundary,
-  //      &Hydro::flux_bnd_recv_wait,
-   //     &Hydro::flux_bnd_send_wait,
-    //    &Hydro::amr_bnd_send,
-     //   &Hydro::amr_bnd_send_wait,
+//       &Hydro::flux_bnd_comm,
+//      &Hydro::physical_boundary,
+//      &Hydro::flux_bnd_recv_wait,
+//     &Hydro::flux_bnd_send_wait,
+//    &Hydro::amr_bnd_send,
+//   &Hydro::amr_bnd_send_wait,
         &Hydro::flux_compute,
-   //     &Hydro::flux_cf_adjust_recv,
-    //    &Hydro::flux_cf_adjust_recv_wait,
-     //   &Hydro::flux_cf_adjust_send,
-      //  &Hydro::flux_cf_adjust_send_wait,
-        &Hydro::compute_dudt,
-        &Hydro::compute_update,
- //       &Hydro::inject_from_children_recv,
-  //      &Hydro::inject_from_children_recv_wait,
-   //     &Hydro::inject_from_children_send,
-    //    &Hydro::inject_from_children_send_wait
+        //     &Hydro::flux_cf_adjust_recv,
+        //    &Hydro::flux_cf_adjust_recv_wait,
+        //   &Hydro::flux_cf_adjust_send,
+        //  &Hydro::flux_cf_adjust_send_wait,
+        &Hydro::compute_dudt, &Hydro::compute_update,
+//       &Hydro::inject_from_children_recv,
+//      &Hydro::inject_from_children_recv_wait,
+//     &Hydro::inject_from_children_send,
+//    &Hydro::inject_from_children_send_wait
         };
 
-Hydro::ifunc_t Hydro::cs_children[4] = { &Hydro::inject_from_children_recv, &Hydro::inject_from_children_recv_wait,
-        &Hydro::inject_from_children_send, &Hydro::inject_from_children_send_wait };
+Hydro::ifunc_t Hydro::cs_children[4] = { &Hydro::inject_from_children_recv, &Hydro::inject_from_children_recv_wait, &Hydro::inject_from_children_send,
+        &Hydro::inject_from_children_send_wait };
 
 bool Hydro::check_for_refine() {
     inject_from_children();
@@ -79,16 +76,16 @@ void Hydro::redistribute_grids() {
 //	printf("D %i MB\n", heap_bytes_used() / 1024 / 1024);
     for (int i = 0; i < count; i++) {
         g = send_list[i];
-        if (*(g->send_request) != MPI_REQUEST_NULL ) {
-            MPI_Wait(g->send_request, MPI_STATUS_IGNORE );
+        if (*(g->send_request) != MPI_REQUEST_NULL) {
+            MPI_Wait(g->send_request, MPI_STATUS_IGNORE);
             delete[] g->mpi_buffer[0];
         }
     }
     count = OctNode::get_local_node_cnt();
     for (int i = 0; i < count; i++) {
         g = dynamic_cast<Hydro*>(OctNode::get_local_node(i));
-        if (*(g->recv_request) != MPI_REQUEST_NULL ) {
-            MPI_Wait(g->recv_request, MPI_STATUS_IGNORE );
+        if (*(g->recv_request) != MPI_REQUEST_NULL) {
+            MPI_Wait(g->recv_request, MPI_STATUS_IGNORE);
         }
 
     }
@@ -100,7 +97,7 @@ void Hydro::store() {
     FO0 = FO;
     for (int i = 0; i < OctNode::get_local_node_cnt(); i++) {
         g = dynamic_cast<Hydro*>(OctNode::get_local_node(i));
-#pragma omp parallel for collapse(2)
+//#pragma omp parallel for collapse(2)
         for (int k = BW; k < GNX - BW; k++) {
             for (int j = BW; j < GNX - BW; j++) {
                 for (int i = BW; i < GNX - BW; i++) {
@@ -130,17 +127,17 @@ Real Hydro::next_dt(bool* do_output, bool* last_step, int* ostep_cnt, Real freq)
     tleft = TIME_MAX - Hydro::get_time();
     next_output_time = Real(*ostep_cnt + 1) * freq;
     if (dt + Hydro::get_time() >= next_output_time) {
-         dt = next_output_time - Hydro::get_time();
-         (*ostep_cnt)++;
-         *do_output = true;
-     } else {
-       // printf( "dt = %e\n", dt);
-       //	printf( "next_output_time = %e\n", next_output_time);
-       // 	printf( "HydroGrid::get_time() = %e\n", get_time());
-        dt = min(dt, (next_output_time - Hydro::get_time()) / Real((long long int)((next_output_time - Hydro::get_time()) / dt + 1.0)));
+        dt = next_output_time - Hydro::get_time();
+        (*ostep_cnt)++;
+        *do_output = true;
+    } else {
+        // printf( "dt = %e\n", dt);
+        //	printf( "next_output_time = %e\n", next_output_time);
+        // 	printf( "HydroGrid::get_time() = %e\n", get_time());
+        dt = min(dt, (next_output_time - Hydro::get_time()) / Real((long long int) ((next_output_time - Hydro::get_time()) / dt + 1.0)));
         dt *= (1.0 + 1.0e-9);
-    //    printf( "-------dt = %e\n", dt);
-     }
+        //    printf( "-------dt = %e\n", dt);
+    }
     if (tleft <= dt) {
         dt = tleft;
         *last_step = true;
@@ -181,7 +178,7 @@ void Hydro::run(int argc, char* argv[]) {
     do {
         dt = next_dt(&do_output, &last_step, &ostep_cnt);
         step(dt);
-        if (step_cnt % (GNX - 2 * BW)== 0){
+        if (step_cnt % (GNX - 2 * BW) == 0) {
             //	check_for_refine();
             if (check_for_refine()) {
                 redistribute_grids();
@@ -193,8 +190,7 @@ void Hydro::run(int argc, char* argv[]) {
             avg_node_cnt = (avg_node_cnt * Real(step_cnt - 1) + Real(nnodes)) / Real(step_cnt);
             max_node_cnt = max(max_node_cnt, nnodes);
             min_node_cnt = min(min_node_cnt, nnodes);
-            printf("step=%i t=%e dt=%e lmax=%i ngrids=%i avg ngrids=%i", step_cnt, Hydro::get_time(), dt, OctNode::get_max_level(), nnodes,
-                    (int) avg_node_cnt);
+            printf("step=%i t=%e dt=%e lmax=%i ngrids=%i avg ngrids=%i", step_cnt, Hydro::get_time(), dt, OctNode::get_max_level(), nnodes, (int) avg_node_cnt);
         }
         if (do_output) {
             if (MPI_rank() == 0) {
@@ -270,7 +266,7 @@ void Hydro::substep_driver() {
         tmp[i] = DFO[i];
     }
     Real tmp2[STATE_NF];
-    MPI_Allreduce(tmp, tmp2, STATE_NF, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD );
+    MPI_Allreduce(tmp, tmp2, STATE_NF, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD);
     for (int i = 0; i < STATE_NF; i++) {
         DFO[i] = tmp2[i];
     }
@@ -278,6 +274,7 @@ void Hydro::substep_driver() {
     FO = (FO + DFO * _dt) * _beta + FO0 * (1.0 - _beta);
 
 }
+
 
 void Hydro::inject_from_children() {
     DFO = Vector<Real, STATE_NF>(0.0);
@@ -300,7 +297,7 @@ Real Hydro::max_dt_driver() {
     run_program(list, get_local_node_cnt(), es, GRID_ES_SIZE);
     delete[] list;
     dt = eax;
-    MPI_Allreduce(&dt, &dt_all, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD );
+    MPI_Allreduce(&dt, &dt_all, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD);
     dt = dt_all;
     //    printf( "dt=%e\n", dt);
     return dt;

@@ -13,27 +13,46 @@
 Real Hydro::root_dt;
 
 void Hydro::write(MPI_File* fh) {
-    MPI_File_write(*fh, &dx, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
+    static State buf[GNX * GNX * GNX];
+    State* ptr;
+    if (0 == MPI_rank()) {
+        MPI_File_write(*fh, &dx, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE);
+    }
     if (get_level() == 0) {
         if (get_time() <= 0.0) {
             FO = FO0 = 0.0;
         }
-        MPI_File_write(*fh, &h0, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
-        MPI_File_write(*fh, &FO, sizeof(State), MPI_BYTE, MPI_STATUS_IGNORE );
+        if (0 == MPI_rank()) {
+            MPI_File_write(*fh, &h0, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE);
+            MPI_File_write(*fh, &FO, sizeof(State), MPI_BYTE, MPI_STATUS_IGNORE);
+        }
     }
-    if (proc() == MPI_rank()) {
-        MPI_File_write(*fh, U.ptr(), sizeof(State) * GNX * GNX * GNX, MPI_BYTE, MPI_STATUS_IGNORE );
+    if (MPI_rank() != 0) {
+        if (proc() == MPI_rank()) {
+            MPI_Send(U.ptr(), sizeof(State) * GNX * GNX * GNX, MPI_BYTE, 0, 0, MPI_COMM_WORLD);
+        }
+    } else {
+        if (proc() != 0) {
+            MPI_Recv(buf, sizeof(State) * GNX * GNX * GNX, MPI_BYTE, proc(), 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            ptr = buf;
+        } else {
+            ptr = U.ptr();
+        }
+        MPI_File_write(*fh, ptr, sizeof(State) * GNX * GNX * GNX, MPI_BYTE, MPI_STATUS_IGNORE);
     }
+
 }
 
 void Hydro::read(MPI_File* fh) {
-    MPI_File_read(*fh, &dx, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_read(*fh, &dx, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE);
     if (get_level() == 0) {
-        MPI_File_read(*fh, &h0, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
-        MPI_File_read(*fh, &FO, sizeof(State), MPI_BYTE, MPI_STATUS_IGNORE );
+        MPI_File_read(*fh, &h0, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE);
+        MPI_File_read(*fh, &FO, sizeof(State), MPI_BYTE, MPI_STATUS_IGNORE);
     }
     if (proc() == MPI_rank()) {
-        MPI_File_read(*fh, U.ptr(), sizeof(State) * GNX * GNX * GNX, MPI_BYTE, MPI_STATUS_IGNORE );
+        MPI_File_read(*fh, U.ptr(), sizeof(State) * GNX * GNX * GNX, MPI_BYTE, MPI_STATUS_IGNORE);
+    } else {
+        MPI_File_seek(*fh, sizeof(State) * GNX * GNX * GNX, MPI_SEEK_CUR);
     }
 }
 
@@ -46,8 +65,8 @@ void Hydro::inject_from_parent(ChildIndex c) {
         for (int j = BW; j < GNX - BW; j += 2) {
             int k0 = (BW + k) / 2 + c.get_z() * (GNX / 2 - BW);
             int j0 = (BW + j) / 2 + c.get_y() * (GNX / 2 - BW);
-            for (int i = BW, i0 = BW + c.get_x() * (GNX / 2 - BW); i < GNX - BW; i += 2, i0++) {u
-                = (*p)(i0, j0, k0);
+            for (int i = BW, i0 = BW + c.get_x() * (GNX / 2 - BW); i < GNX - BW; i += 2, i0++) {
+                u = (*p)(i0, j0, k0);
                 U(i + 0, j + 0, k + 0) = u;
                 U(i + 1, j + 0, k + 0) = u;
                 U(i + 0, j + 1, k + 0) = u;
@@ -103,9 +122,6 @@ Hydro::Hydro() :
         OctNode() {
     static bool init = false;
     if (!init) {
-        origin[0] = 0.0;
-        origin[1] = 0.0;
-        origin[2] = 0.0;
         init = true;
     }
     mpi_datatypes_initialize();
@@ -130,10 +146,7 @@ void Hydro::deallocate_arrays() {
     U.deallocate();
     D.deallocate();
     U0.deallocate();
-    if (shadow) {
-        E0.deallocate();
-        E.deallocate();
-    }
+
 }
 
 void Hydro::allocate_arrays() {
@@ -143,10 +156,7 @@ void Hydro::allocate_arrays() {
     U.allocate();
     D.allocate();
     U0.allocate();
-    if (shadow) {
-        E.allocate();
-        E0.allocate();
-    }
+
 }
 
 void Hydro::init() {
@@ -193,7 +203,7 @@ Vector<State, 4> Hydro::state_sum() const {
             }
         }
     }
-    MPI_Bcast(buffer, 4 * STATE_NF, MPI_DOUBLE_PRECISION, this->proc(), MPI_COMM_WORLD );
+    MPI_Bcast(buffer, 4 * STATE_NF, MPI_DOUBLE_PRECISION, this->proc(), MPI_COMM_WORLD);
     if (this->proc() != MPI_rank()) {
         int cnt = 0;
         for (int i = 0; i < STATE_NF; i++) {
@@ -248,7 +258,8 @@ void Hydro::amr_bnd_send(int) {
                                     cnt++;
                                 }
                             }
-                        }assert( cnt == sz);
+                        }
+                        assert( cnt == sz);
                         tag = tag_gen(TAG_FLUX, g->get_id(), f);
                         MPI_Isend(mpi_amr_buffer[2 * dir][amr_cnt[dir]], cnt, MPI_state_t, g->proc(), tag, MPI_COMM_WORLD,
                                 &(amr_send_request[dir][amr_cnt[dir]]));
@@ -268,7 +279,7 @@ void Hydro::amr_bnd_send(int) {
 void Hydro::amr_bnd_send_wait(int) {
     int flag;
     for (int dir = 0; dir < 3; dir++) {
-        MPI_Testall(amr_cnt[dir], amr_send_request[dir], &flag, MPI_STATUS_IGNORE );
+        MPI_Testall(amr_cnt[dir], amr_send_request[dir], &flag, MPI_STATUS_IGNORE);
         if (!flag) {
             break;
         }
@@ -317,7 +328,7 @@ void Hydro::inject_from_children_recv(int) {
 
 void Hydro::inject_from_children_send_wait(int) {
     int flag;
-    MPI_Test(send_request, &flag, MPI_STATUS_IGNORE );
+    MPI_Test(send_request, &flag, MPI_STATUS_IGNORE);
     if (flag && get_level() != 0) {
         delete[] mpi_buffer[0];
     }
@@ -328,7 +339,7 @@ void Hydro::inject_from_children_send_wait(int) {
 
 void Hydro::inject_from_children_recv_wait(int) {
     int flag;
-    MPI_Testall(8, recv_request, &flag, MPI_STATUS_IGNORE );
+    MPI_Testall(8, recv_request, &flag, MPI_STATUS_IGNORE);
     if (flag) {
         inc_instruction_pointer();
     }
@@ -359,7 +370,7 @@ void Hydro::flux_bnd_comm(int) {
 
 void Hydro::flux_bnd_recv_wait(int) {
     int flag;
-    MPI_Testall(6, recv_request, &flag, MPI_STATUS_IGNORE );
+    MPI_Testall(6, recv_request, &flag, MPI_STATUS_IGNORE);
     if (flag) {
         inc_instruction_pointer();
     }
@@ -448,7 +459,7 @@ void Hydro::recv_from_children_dt(int) {
 void Hydro::recv_from_children_dt_wait(int) {
     int flag;
     if (_beta == 1.0) {
-        MPI_Testall(8, recv_dt_request, &flag, MPI_STATUSES_IGNORE );
+        MPI_Testall(8, recv_dt_request, &flag, MPI_STATUSES_IGNORE);
         if (flag) {
             for (int i = 0; i < 8; i++) {
                 my_dt = min(my_dt, recv_dt_value[i]);
@@ -458,7 +469,7 @@ void Hydro::recv_from_children_dt_wait(int) {
                 int tag = tag_gen(TAG_DTUP, get_id(), 0);
                 MPI_Isend(&my_dt, 1, MPI_DOUBLE, get_parent()->proc(), tag, MPI_COMM_WORLD, &req);
             }
-            if( get_level() == 0 ) {
+            if (get_level() == 0) {
                 root_dt = my_dt;
             }
             inc_instruction_pointer();
@@ -596,7 +607,7 @@ void Hydro::flux_cf_adjust_recv(int) {
 
 void Hydro::flux_cf_adjust_send_wait(int) {
     int flag;
-    MPI_Testall(6, send_request, &flag, MPI_STATUS_IGNORE );
+    MPI_Testall(6, send_request, &flag, MPI_STATUS_IGNORE);
     if (flag) {
         for (int f = 0; f < 6; f++) {
             if (is_amr_bound(f)) {
@@ -615,11 +626,11 @@ void Hydro::flux_cf_adjust_recv_wait(int) {
     flag = true;
     for (int dir = 0; dir < 3; dir++) {
         if (amr_has[dir]) {
-            MPI_Testall(8, amr_recv_request[2 * dir], &flag, MPI_STATUS_IGNORE );
+            MPI_Testall(8, amr_recv_request[2 * dir], &flag, MPI_STATUS_IGNORE);
             if (!flag) {
                 break;
             }
-            MPI_Testall(8, amr_recv_request[2 * dir + 1], &flag, MPI_STATUS_IGNORE );
+            MPI_Testall(8, amr_recv_request[2 * dir + 1], &flag, MPI_STATUS_IGNORE);
             if (!flag) {
                 break;
             }
@@ -679,7 +690,8 @@ void Hydro::flux_cf_adjust_recv_wait(int) {
                                 cnt++;
                             }
                         }
-                    }assert( cnt == (GNX-2*BW)*(GNX-2*BW)/4);
+                    }
+                    assert( cnt == (GNX-2*BW)*(GNX-2*BW)/4);
                     delete[] mpi_amr_buffer[f][ci];
                 }
             }
@@ -786,7 +798,7 @@ void Hydro::compute_update(int) {
         for (int j = BW; j < GNX - BW; j++) {
             for (int i = BW; i < GNX - BW; i++) {
                 U(i, j, k) = (U(i, j, k) + D(i, j, k) * _dt) * _beta + U0(i, j, k) * (1.0 - _beta);
-                U(i, j, k).floor(X(i, j, k));
+                U(i, j, k).floor(X(i, j, k), get_dx());
             }
         }
     }
@@ -821,34 +833,67 @@ void Hydro::store_U(int) {
     inc_instruction_pointer();
 }
 
-void Hydro::set_refine_flags() {
-    if (!shadow) {
-        printf("set_refine_flags not defined\n");
-        abort();
-    }
-    if (get_level() < 1) {
-        for (int i = 0; i < OCT_NCHILD; i++) {
-            set_refine_flag(i, true);
+bool Hydro::check_for_expand() {
+    return false;
+    bool rc;
+    if (get_level() == 2) {
+        rc = false;
+        for (int i = 0; i < 8; i++) {
+            if (get_child(i) && ((i ^ 0x7) != my_child_index())) {
+                rc = true;
+                break;
+            }
         }
-    } else if (get_level() < get_max_level_allowed()) {
-//#pragma omp parallel for collapse(2)
-        for (int k = BW; k < GNX - BW; k++) {
-            for (int j = BW; j < GNX - BW; j++) {
-                ChildIndex c;
-                c.set_z(2 * k / GNX);
-                c.set_y(2 * j / GNX);
-                for (int i = BW; i < GNX - BW; i++) {
-                    c.set_x(2 * i / GNX);
-                    if (!get_refine_flag(c)) {
-                        if (E0(i, j, k).mag() > 10000) {
-//#pragma omp critical
-                            set_refine_flag(c, true);
-                        }
-                    }
-                }
+    } else {
+        for (int i = 0; i < 8; i++) {
+            if (get_child(i)) {
+                rc = dynamic_cast<Hydro*>(get_child(i))->check_for_expand();
             }
         }
     }
+
+    if (get_level() == 0) {
+        if (rc) {
+            MPI_rank() ? 0 : printf("Expanding grid to %i levels\n", get_max_level_allowed() + 1);
+            get_root()->output("./E", 0.0, GNX, BW);
+            this->expand_grid();
+            MPI_rank() ? 0 : printf("Done expanding\n");
+            get_root()->output("./E", 1.0, GNX, BW);
+
+        }
+    }
+    return rc;
+
+}
+
+void Hydro::expand_grid() {
+    Hydro* child;
+    if (get_level() == 0) {
+        OctNode::expand_grid();
+        h0 *= 2.0;
+    }
+    if (get_level() == 1) {
+        dx = h0 / 2.0;
+        if (proc() == MPI_rank()) {
+            allocate_arrays();
+            for (Indexer3d i(BW, GNX - BW - 1); !i.end(); i++) {
+                U(i) = 0.0;
+            }
+        } else {
+            deallocate_arrays();
+        }
+    }
+    for (int i = 0; i < 8; i++) {
+        if (get_child(i)) {
+            child = dynamic_cast<Hydro*>(get_child(i));
+            child->offset = (offset * 2 + BW) + ChildIndex(i).vector() * (GNX - 2 * BW);
+            child->expand_grid();
+        }
+    }
+}
+
+void Hydro::set_refine_flags() {
+    abort();
 }
 
 _3Vec Hydro::X(int i, int j, int k) const {
@@ -910,15 +955,15 @@ Real Hydro::zc(int k) const {
 }
 
 Real Hydro::xf(int i) const {
-    return Real(offset[0] + i) * dx - (GNX / 2) * h0 - origin[0];
+    return Real(offset[0] + i) * dx - (GNX / 2) * h0;
 }
 
 Real Hydro::yf(int i) const {
-    return Real(offset[1] + i) * dx - (GNX / 2) * h0 - origin[1];
+    return Real(offset[1] + i) * dx - (GNX / 2) * h0;
 }
 
 Real Hydro::zf(int i) const {
-    return Real(offset[2] + i) * dx - (GNX / 2) * h0 - origin[2];
+    return Real(offset[2] + i) * dx - (GNX / 2) * h0;
 }
 
 void Hydro::max_dt_compute(int) {
@@ -942,7 +987,7 @@ void Hydro::max_dt_compute(int) {
                 ql[i].from_prim(x);
                 qr[i].from_prim(x);
                 this_dtinv = max(this_dtinv, ql[i].max_abs_x_eigen(x), qr[i].max_abs_x_eigen(x));
-                assert(this_dtinv > 0.0 );
+                assert(this_dtinv > 0.0);
             }
             for (i = 0; i < GNX; i++) {
                 q0[i] = U(j, i, k);
@@ -954,7 +999,7 @@ void Hydro::max_dt_compute(int) {
                 ql[i].from_prim(x);
                 qr[i].from_prim(x);
                 this_dtinv = max(this_dtinv, ql[i].max_abs_y_eigen(x), qr[i].max_abs_y_eigen(x));
-                assert(this_dtinv > 0.0 );
+                assert(this_dtinv > 0.0);
             }
             for (i = 0; i < GNX; i++) {
                 q0[i] = U(j, k, i);
@@ -966,7 +1011,7 @@ void Hydro::max_dt_compute(int) {
                 ql[i].from_prim(x);
                 qr[i].from_prim(x);
                 this_dtinv = max(this_dtinv, ql[i].max_abs_z_eigen(x), qr[i].max_abs_z_eigen(x));
-                assert(this_dtinv > 0.0 );
+                assert(this_dtinv > 0.0);
             }
             //#pragma omp critical
             dtinv = max(this_dtinv, dtinv);
@@ -1012,3 +1057,8 @@ void Hydro::physical_boundary(int dir) {
     }
     inc_instruction_pointer();
 }
+
+
+
+
+

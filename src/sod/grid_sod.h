@@ -8,12 +8,12 @@
 #ifndef GRID_SOD_H_
 #define GRID_SOD_H_
 
-#include "hydro/hydro.h"
+#include "../hydro/hydro.h"
 
 #ifdef SOD
 
 class GridSod:
-public HydroGrid
+public Hydro
 {
     static Vector<Real, 5>* line_avg_tmp;
     static Vector<Real, 5>* line_avg;
@@ -29,16 +29,16 @@ public:
     virtual ~GridSod();
 private:
     Real get_dx() const {
-        return HydroGrid::get_dx();
+        return Hydro::get_dx();
     }
     Real xc(int i) const {
-        return HydroGrid::xc(i);
+        return Hydro::xc(i);
     }
     Real yc(int i) const {
-        return HydroGrid::yc(i);
+        return Hydro::yc(i);
     }
     Real zc(int i) const {
-        return HydroGrid::zc(i);
+        return Hydro::zc(i);
     }
     Real yzsod(Vector<int, 3> i) const {
         return yzsod(i[0], i[1], i[2]);

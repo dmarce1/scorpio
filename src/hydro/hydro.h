@@ -41,7 +41,6 @@ public:
 private:
     Real time;
     Array3d<Vector<Real, STATE_NF>, GNX, GNX, GNX> F[3];
-    Array3d<Vector<Real, STATE_NF>, GNX, GNX, GNX> E;
     bool amr_has[3];
     int amr_cnt[3];
     MPI_Request send_request[8];
@@ -67,7 +66,6 @@ protected:
     Array3d<Vector<Real, STATE_NF>, GNX, GNX, GNX> D;
     static Reconstruct reconstruct;
     static Real eax;
-    Array3d<State, GNX, GNX, GNX> E0;
     static State DFO;
     static State get_flow_off() {
         return FO;
@@ -97,7 +95,7 @@ protected:
     static void set_beta(Real);
     static void substep_driver();
     static bool check_for_refine();
-    static void inject_from_children();
+      static void inject_from_children();
     static void sum_outflows();
     virtual void compute_flow_off();
     virtual void create_child(const ChildIndex&);
@@ -118,7 +116,8 @@ protected:
     static void step(Real dt);
     void reduce_dt(Real dt);
 public:
-    static void store();
+    bool check_for_expand();
+     static void store();
     void store_U(int dir);
     virtual void physical_boundary(int);
     void amr_bnd_send_wait(int);
@@ -155,15 +154,6 @@ public:
         return X(v[0], v[1], v[2]);
     }
     _3Vec X(int, int, int) const;
-    bool using_shadow() const {
-        return shadow;
-    }
-    State get_shadow_error(int i, int j, int k) const {
-        if (!shadow) {
-            abort();
-        }
-        return E0(i, j, k);
-    }
     Real get_dx() const;
     virtual Real xc(int) const;
     virtual Real yc(int) const;
@@ -181,6 +171,8 @@ public:
     virtual void init();
     Hydro();
     virtual ~Hydro();
+    virtual void expand_grid();
 };
+
 
 #endif /* GRID_NODE_H_ */

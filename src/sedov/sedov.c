@@ -27,7 +27,7 @@ void sedov_solution( double t, int N, const double* xpos, double E, double rho, 
 	for( i = 0; i < N; i++ ) {
 		xpos0[i] = (sfloat) xpos[i];
 	}
-	sed_1d_( &t0, &N, xpos0, &E0, &omega, &geom, &rho0, &vel0, &ener0, &pres0, &cs0, &gam0, dout0, eout0, pout, vout0, csout );
+	//sed_1d_( &t0, &N, xpos0, &E0, &omega, &geom, &rho0, &vel0, &ener0, &pres0, &cs0, &gam0, dout0, eout0, pout, vout0, csout );
 	free( xpos0 );
 	free( pout );
 	free( csout );

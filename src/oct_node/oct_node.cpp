@@ -11,6 +11,37 @@
 #include <silo.h>
 #endif
 
+void OctNode::expand_grid() {
+    if (get_level() == 0) {
+        OctNode* grandchild[8];
+        for (int i = 0; i < 8; i++) {
+            grandchild[i] = get_child(i);
+            set_child(i, 0);
+        }
+        max_refine_level++;
+        for (int i = 0; i < OCT_NCHILD; i++) {
+            this->create_child(i);
+            if (grandchild[i]) {
+                get_child(i)->set_child(i ^ 0x7, grandchild[i]);
+                grandchild[i]->set_parent(get_child(i));
+            } else {
+                assert(false);
+            }
+        }
+    } else {
+        this->level = get_parent()->get_level() + 1;
+    }
+    for (int i = 0; i < OCT_NCHILD; i++) {
+        if (get_child(i)) {
+            get_child(i)->location = location * 2 + ChildIndex(i).vector();
+            (*get_child(i)).OctNode::expand_grid();
+        }
+    }
+    if (get_level() == 0) {
+        find_local_nodes();
+    }
+}
+
 void OctNode::set_max_level_allowed(int l) {
     max_refine_level = l;
 }
@@ -123,10 +154,10 @@ void OctNode::compute_distribution() {
 //	next_processor = node_dist[get_level()] * MPI_size() / node_sums[get_level()];
 //	node_dist[get_level()]++;
 #ifdef RANK_ZERO_HAS_ONE_GRID
-    if( node_counter == 0 ) {
+    if (node_counter == 0) {
         next_processor = 0;
     } else {
-        next_processor = (node_counter-1) * (MPI_size()-1) / (get_node_cnt()-1)+1;
+        next_processor = (node_counter - 1) * (MPI_size() - 1) / (get_node_cnt() - 1) + 1;
     }
 #else
     next_processor = node_counter * MPI_size() / get_node_cnt();
@@ -149,18 +180,22 @@ bool OctNode::is_real_bound(OctFace f) const {
 
 void OctNode::write_checkpoint(MPI_File* fh) {
     if (get_level() == 0) {
-        MPI_File_write(*fh, &grid_time, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
+        if (0 == MPI_rank()) {
+            MPI_File_write(*fh, &grid_time, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE);
+        }
     }
     bool child_flags[OCT_NCHILD];
-    // fwrite(&processor, sizeof(int), 1, fp);
-    // fwrite(&myid, sizeof(int), 1, fp);
-    MPI_File_write(*fh, &processor, sizeof(int), MPI_BYTE, MPI_STATUS_IGNORE );
-    MPI_File_write(*fh, &myid, sizeof(int), MPI_BYTE, MPI_STATUS_IGNORE );
+    if (0 == MPI_rank()) {
+        MPI_File_write(*fh, &processor, sizeof(int), MPI_BYTE, MPI_STATUS_IGNORE);
+        MPI_File_write(*fh, &myid, sizeof(int), MPI_BYTE, MPI_STATUS_IGNORE);
+    }
     this->write(fh);
     for (int i = 0; i < OCT_NCHILD; i++) {
         child_flags[i] = (get_child(i) != NULL);
     }
-    MPI_File_write(*fh, child_flags, sizeof(bool) * OCT_NCHILD, MPI_BYTE, MPI_STATUS_IGNORE );
+    if (0 == MPI_rank()) {
+        MPI_File_write(*fh, child_flags, sizeof(bool) * OCT_NCHILD, MPI_BYTE, MPI_STATUS_IGNORE);
+    }
     for (int i = 0; i < OCT_NCHILD; i++) {
         if (get_child(i) != NULL) {
             get_child(i)->write_checkpoint(fh);
@@ -170,18 +205,18 @@ void OctNode::write_checkpoint(MPI_File* fh) {
 
 void OctNode::read_checkpoint(MPI_File* fh) {
     if (get_level() == 0) {
-        MPI_File_read(*fh, &grid_time, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE );
+        MPI_File_read(*fh, &grid_time, sizeof(Real), MPI_BYTE, MPI_STATUS_IGNORE);
     }
     bool child_flags[OCT_NCHILD];
-    MPI_File_read(*fh, &processor, sizeof(int), MPI_BYTE, MPI_STATUS_IGNORE );
-    MPI_File_read(*fh, &myid, sizeof(int), MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_read(*fh, &processor, sizeof(int), MPI_BYTE, MPI_STATUS_IGNORE);
+    MPI_File_read(*fh, &myid, sizeof(int), MPI_BYTE, MPI_STATUS_IGNORE);
     if (processor == MPI_rank()) {
         this->allocate_arrays();
     } else {
         this->deallocate_arrays();
     }
     this->read(fh);
-    MPI_File_read(*fh, child_flags, sizeof(bool) * OCT_NCHILD, MPI_BYTE, MPI_STATUS_IGNORE );
+    MPI_File_read(*fh, child_flags, sizeof(bool) * OCT_NCHILD, MPI_BYTE, MPI_STATUS_IGNORE);
     for (int i = 0; i < OCT_NCHILD; i++) {
         if (child_flags[i]) {
             if (!get_child(i)) {
@@ -431,7 +466,7 @@ void OctNode::clear_refine_flags() {
 }
 
 void OctNode::enforce_proper_nesting() {
-    if (get_level() > 0) {
+     if (get_level() > 0) {
         const ChildIndex mi = my_child_index();
         OctNode* parent = get_parent();
         ChildIndex ci, i;
@@ -445,10 +480,10 @@ void OctNode::enforce_proper_nesting() {
                 g = NULL;
                 if ((mi.get_x() == ci.get_x()) && !is_phys_bound(ci.x_face())) {
                     g = (parent->get_sibling(ci.x_face()));
-                    assert(g!=NULL);
+                    //                assert(g!=NULL);
                 } else {
                     g = (parent);
-                    assert(g!=NULL);
+                    //                assert(g!=NULL);
                 }
                 if (g != NULL) {
                     (g)->refine[i] = true;
@@ -458,10 +493,10 @@ void OctNode::enforce_proper_nesting() {
                 g = NULL;
                 if ((mi.get_y() == ci.get_y()) && !is_phys_bound(ci.y_face())) {
                     g = (parent->get_sibling(ci.y_face()));
-                    assert(g!=NULL);
+                    //               assert(g!=NULL);
                 } else {
                     g = (parent);
-                    assert(g!=NULL);
+                    //               assert(g!=NULL);
                 }
                 if (g != NULL) {
                     (g)->refine[i] = true;
@@ -471,10 +506,10 @@ void OctNode::enforce_proper_nesting() {
                 g = NULL;
                 if ((mi.get_z() == ci.get_z()) && !is_phys_bound(ci.z_face())) {
                     g = (parent->get_sibling(ci.z_face()));
-                    assert(g!=NULL);
+                    //              assert(g!=NULL);
                 } else {
                     g = (parent);
-                    assert(g!=NULL);
+                    //              assert(g!=NULL);
                 }
                 if (g != NULL) {
                     (g)->refine[i] = true;
@@ -486,21 +521,23 @@ void OctNode::enforce_proper_nesting() {
                 if ((mi.get_x() == ci.get_x()) && !is_phys_bound(ci.x_face())) {
                     if ((mi.get_y() == ci.get_y()) && !is_phys_bound(ci.y_face())) {
                         tmp = parent->get_sibling(ci.x_face());
-                        assert(tmp);
-                        tmp = tmp->get_sibling(ci.y_face());
-                        g = (tmp);
-                        assert(g!=NULL);
+                        //                assert(tmp);
+                        if (tmp) {
+                            tmp = tmp->get_sibling(ci.y_face());
+                            g = (tmp);
+                            //                     assert(g!=NULL);
+                        }
                     } else {
                         g = (parent->get_sibling(ci.x_face()));
-                        assert(g!=NULL);
+                        //                       assert(g!=NULL);
                     }
                 } else {
                     if ((mi.get_y() == ci.get_y()) && !is_phys_bound(ci.y_face())) {
                         g = (parent->get_sibling(ci.y_face()));
-                        assert(g!=NULL);
+                        //                       assert(g!=NULL);
                     } else {
                         g = (parent);
-                        assert(g!=NULL);
+//                        assert(g!=NULL);
                     }
                 }
                 if (g != NULL) {
@@ -513,20 +550,22 @@ void OctNode::enforce_proper_nesting() {
                 if ((mi.get_x() == ci.get_x()) && !is_phys_bound(ci.x_face())) {
                     if ((mi.get_z() == ci.get_z()) && !is_phys_bound(ci.z_face())) {
                         tmp = parent->get_sibling(ci.x_face());
-                        tmp = tmp->get_sibling(ci.z_face());
+                        if (tmp) {
+                            tmp = tmp->get_sibling(ci.z_face());
+                        }
                         g = (tmp);
-                        assert(g!=NULL);
+                        //                     assert(g!=NULL);
                     } else {
                         g = (parent->get_sibling(ci.x_face()));
-                        assert(g!=NULL);
+                        //                    assert(g!=NULL);
                     }
                 } else {
                     if ((mi.get_z() == ci.get_z()) && !is_phys_bound(ci.z_face())) {
                         g = (parent->get_sibling(ci.z_face()));
-                        assert(g!=NULL);
+                        //                     assert(g!=NULL);
                     } else {
                         g = (parent);
-                        assert(g!=NULL);
+                        //                     assert(g!=NULL);
                     }
                 }
                 if (g != NULL) {
@@ -539,20 +578,22 @@ void OctNode::enforce_proper_nesting() {
                 if ((mi.get_y() == ci.get_y()) && !is_phys_bound(ci.y_face())) {
                     if ((mi.get_z() == ci.get_z()) && !is_phys_bound(ci.z_face())) {
                         tmp = parent->get_sibling(ci.y_face());
-                        tmp = tmp->get_sibling(ci.z_face());
-                        g = (tmp);
-                        assert(g!=NULL);
+                        if (tmp) {
+                            tmp = tmp->get_sibling(ci.z_face());
+                            g = (tmp);
+                            //                     assert(g!=NULL);
+                        }
                     } else {
                         g = (parent->get_sibling(ci.y_face()));
-                        assert(g!=NULL);
+                        //                     assert(g!=NULL);
                     }
                 } else {
                     if ((mi.get_z() == ci.get_z()) && !is_phys_bound(ci.z_face())) {
                         g = (parent->get_sibling(ci.z_face()));
-                        assert(g!=NULL);
+                        //                      assert(g!=NULL);
                     } else {
                         g = (parent);
-                        assert(g!=NULL);
+                        //                      assert(g!=NULL);
                     }
                 }
                 if (g != NULL) {
@@ -567,50 +608,60 @@ void OctNode::enforce_proper_nesting() {
                     if ((mi.get_y() == ci.get_y()) && !is_phys_bound(ci.y_face())) {
                         if ((mi.get_z() == ci.get_z()) && !is_phys_bound(ci.z_face())) {
                             tmp = parent->get_sibling(ci.x_face());
-                            assert(tmp!=NULL);
-                            tmp = tmp->get_sibling(ci.y_face());
-                            assert(tmp!=NULL);
-                            tmp = tmp->get_sibling(ci.z_face());
-                            assert(tmp!=NULL);
-                            g = (tmp);
+                            //                           assert(tmp!=NULL);
+                            if (tmp) {
+                                tmp = tmp->get_sibling(ci.y_face());
+                                //                           assert(tmp!=NULL);
+                                if (tmp) {
+                                    tmp = tmp->get_sibling(ci.z_face());
+                                    //                           assert(tmp!=NULL);
+                                    g = (tmp);
+                                }
+                            }
                         } else {
                             tmp = parent->get_sibling(ci.x_face());
-                            tmp = tmp->get_sibling(ci.y_face());
-                            g = (tmp);
-                            assert(g!=NULL);
+                            if (tmp) {
+                                tmp = tmp->get_sibling(ci.y_face());
+                                g = (tmp);
+                                //                  assert(g!=NULL);
+                            }
                         }
                     } else {
                         if ((mi.get_z() == ci.get_z()) && !is_phys_bound(ci.z_face())) {
                             tmp = parent->get_sibling(ci.x_face());
-                            tmp = tmp->get_sibling(ci.z_face());
-                            g = (tmp);
-                            assert(g!=NULL);
+                            if (tmp) {
+                                tmp = tmp->get_sibling(ci.z_face());
+                                g = (tmp);
+                                //                    assert(g!=NULL);
+                            }
                         } else {
                             tmp = parent->get_sibling(ci.x_face());
                             g = (tmp);
-                            assert(g!=NULL);
+                            //              assert(g!=NULL);
                         }
                     }
                 } else {
                     if ((mi.get_y() == ci.get_y()) && !is_phys_bound(ci.y_face())) {
                         if ((mi.get_z() == ci.get_z()) && !is_phys_bound(ci.z_face())) {
                             tmp = parent->get_sibling(ci.y_face());
-                            tmp = tmp->get_sibling(ci.z_face());
-                            g = (tmp);
-                            assert(g!=NULL);
+                            if (tmp) {
+                                tmp = tmp->get_sibling(ci.z_face());
+                                g = (tmp);
+                                //  assert(g!=NULL);
+                            }
                         } else {
                             tmp = parent->get_sibling(ci.y_face());
                             g = (tmp);
-                            assert(g!=NULL);
+                            //                       assert(g!=NULL);
                         }
                     } else {
                         if ((mi.get_z() == ci.get_z()) && !is_phys_bound(ci.z_face())) {
                             tmp = parent->get_sibling(ci.z_face());
                             g = (tmp);
-                            assert(g!=NULL);
+                            //                     assert(g!=NULL);
                         } else {
                             g = (parent);
-                            assert(g!=NULL);
+                            //                   assert(g!=NULL);
                         }
                     }
                 }
@@ -691,7 +742,7 @@ void OctNode::output(grid_output_t* ptr, int nx0, int bw0, Real dtheta) const {
                 }
             }
             if (cnt != 0) {
-                MPI_Recv(output_buffer, cnt * nvar, MPI_DOUBLE_PRECISION, proc(), 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE );
+                MPI_Recv(output_buffer, cnt * nvar, MPI_DOUBLE_PRECISION, proc(), 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             }
         }
 //        printf( "%e\n", dtheta);
@@ -764,13 +815,13 @@ void OctNode::output(grid_output_t* ptr, int nx0, int bw0, Real dtheta) const {
                 }
             }
             if (cnt != 0) {
-                MPI_Send(output_buffer, cnt * nvar, MPI_DOUBLE_PRECISION, 0, 0, MPI_COMM_WORLD );
+                MPI_Send(output_buffer, cnt * nvar, MPI_DOUBLE_PRECISION, 0, 0, MPI_COMM_WORLD);
             }
         }
     }
     for (int i = 0; i < OCT_NCHILD; i++) {
         if (get_child(i) != NULL) {
-            get_child(i)->output(ptr, nx0, bw0,dtheta);
+            get_child(i)->output(ptr, nx0, bw0, dtheta);
         }
     }
 }
@@ -843,7 +894,7 @@ void OctNode::output(const char* prefix, int counter, int nx0, int bw0, double d
             delete[] coordnames[i];
         }
     } else {
-        output(NULL, nx0, bw0,dtheta);
+        output(NULL, nx0, bw0, dtheta);
 
     }
     delete[] output_buffer;

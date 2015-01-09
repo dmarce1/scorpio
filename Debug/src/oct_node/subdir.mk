@@ -28,8 +28,8 @@ CPP_DEPS += \
 # Each subdirectory must supply rules for building sources it contributes
 src/oct_node/%.o: ../src/oct_node/%.cpp
 	@echo 'Building file: $<'
-	@echo 'Invoking: Intel Intel(R) 64 C++ Compiler '
-	mpic++ -g -I"/home/dmarce1/Scorpio/src" -openmp-stubs -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -c -o "$@" "$<"
+	@echo 'Invoking: Intel C++ Compiler'
+	mpicc -g -O0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -c -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 

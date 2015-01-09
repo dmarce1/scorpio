@@ -9,29 +9,30 @@
 #include <stdio.h>
 #include "../physical_constants.h"
 
-#define NFRAC 2
+#define NFRAC 5
 
-#define STATE_NF 10
+#define STATE_NF 13
 
 class State: public Vector<Real, STATE_NF> {
 public:
     static Real gamma;
     static Real ei_floor;
     static Real rho_floor;
-    static const int d_index = 0;
-    static const int sx_index = 1;
-    static const int sy_index = 2;
-    static const int lz_index = 3;
-    static const int sz_index = 4;
-    static const int et_index = 5;
-    static const int tau_index = 6;
-    static const int pot_index = 7;
+    static const int sx_index = 0;
+    static const int sy_index = 1;
+    static const int lz_index = 2;
+    static const int sz_index = 3;
+    static const int et_index = 4;
+    static const int tau_index = 5;
+    static const int pot_index = 6;
+    static const int rho_index = 7;
     static const int frac_index = STATE_NF - NFRAC;
     static Real omega;
     static Real omega0;
     static Real omega_dot;
-    static Real driving_rate,driving_time;
+    static Real driving_rate, driving_time;
 public:
+    Real rho_no_floor() const;
     static void set_gamma(Real g);
     static Real get_omega();
     void set_frac(int f, Real a);
@@ -49,7 +50,7 @@ public:
     void to_prim(const _3Vec& X);
     void from_prim(const _3Vec& X);
     static const char* field_name(int i);
-    void floor(const _3Vec&);
+    void floor(const _3Vec&, Real);
     Real rho() const;
     Real tau() const;
     Real sz() const;
@@ -66,7 +67,7 @@ public:
     Real ei(const _3Vec& X) const;
     Real cs(const _3Vec& X) const;
     Real pg(const _3Vec& X) const;
-    void set_rho(Real, int = 0);
+    void set_rho(Real ro) { (*this)[rho_index] = ro;}
     void set_lz(Real);
     void set_tau(Real);
     void set_sx(Real);

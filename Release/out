@@ -1,0 +1,1000 @@
+ 1019  cd ..
+ 1020  cd hpx
+ 1021  ls
+ 1022  cp ../config_hpx.sh .
+ 1023  ./config_hpx.sh 
+ 1024  find ../../compiler/ -name "icpc.cfg"
+ 1025  gedit ../../compiler/composer_xe_2013.5.192/bin/intel64/icpc.cfg
+ 1026  ./config_hpx.sh 
+ 1027  cd /usr
+ 1028  cd gnu
+ 1029  ls
+ 1030  cd buils
+ 1031  ls
+ 1032  cd builds
+ 1033  ls
+ 1034  cd ..
+ 1035  rm -r gnu
+ 1036  sudo rm -r -f gnu
+ 1037  cd intel
+ 1038  ls
+ 1039  cd builds/
+ 1040  ls
+ 1041  rm -r boost_1_5*
+ 1042  cp ~/Downloads/
+ 1043  cp ~/Downloads/boost_1_53_0.tar.gz .
+ 1044  rm -r bin
+ 1045  cd ..
+ 1046  rm -r bin
+ 1047  rm -r lib
+ 1048  rm -r etc
+ 1049  rm -r share
+ 1050  ls
+ 1051  rm -r include
+ 1052  cd builds
+ 1053  cd openmpi-1.8.1/
+ 1054  make install
+ 1055  source ~/use_intel.sh
+ 1056  make install
+ 1057  cd ..
+ 1058  ls
+ 1059  tar -xvf boost_1_53_0.tar.gz 
+ 1060  cd boost_1_53_0/
+ 1061  ./bootstrap.sh --prefix=/usr/intel
+ 1062  ./b2 toolset=intel -j5
+ 1063  find  . -name "user-config.jam"
+ 1064  vi ./tools/build/v2/user-config.jam
+ 1065  ./b2 toolset=intel -j5
+ 1066  find /usr/intel/compilers -name "icpc.cfg
+ 1067  find /usr/intel/compilers -name "icpc.cfg"
+ 1068  find /usr/intel/compiler -name "icpc.cfg"
+ 1069  vi 
+ 1070  vi /usr/intel/compiler/composer_xe_2013.5.192/bin/intel64/icpc.cfg
+ 1071  ./b2 toolset=intel -j5
+ 1072  ./b2 toolset=intel -j5 install
+ 1073  cd ..
+ 1074  cd hpx
+ 1075  ls
+ 1076  vi config.sh
+ 1077  vi config_hpx.sh
+ 1078  ./config_hpx.sh
+ 1079  vi /usr/intel/compiler/composer_xe_2013.5.192/bin/intel64/icpc.cfg
+ 1080  ./config_hpx.sh
+ 1081  cd ..
+ 1082  cd boost_1_53_0/
+ 1083  ./b2 toolset=intel -j5 install
+ 1084  vi /usr/intel/compiler/composer_xe_2013.5.192/bin/intel64/icpc.cfg
+ 1085  ./b2 toolset=intel -j5 install
+ 1086  cd ..
+ 1087  ls
+ 1088  cd 
+ 1089  cd backup/
+ 1090  ls
+ 1091  cd home
+ 1092  cd intel
+ 1093  ls
+ 1094  cd ism
+ 1095  l
+ 1096  ls
+ 1097  cd rm
+ 1098  l
+ 1099  ls
+ 1100  cat intelremotemon
+ 1101  cat intelremotemondata.db 
+ 1102  cd
+ 1103  cd backup/
+ 1104  cd home/
+ 1105  cd HPX
+ 1106  ls
+ 1107  cd
+ 1108  cd /usr
+ 1109  ls
+ 1110  cd intel
+ 1111  ls
+ 1112  cd builds/
+ 1113  ls
+ 1114  cd boost_1_53_0/
+ 1115  ls
+ 1116  ./b2 -j5 install
+ 1117  cd ..
+ 1118  cd hpx/
+ 1119  make -j4
+ 1120  ./config_hpx.sh 
+ 1121  cd /usr/intel/builds/boost_1_53_0/stage/lib
+ 1122  ks
+ 1123  ls
+ 1124  cd ..
+ 1125  cd lib
+ 1126  ls
+ 1127  ls -ralt
+ 1128  cd ..
+ 1129  cd intel
+ 1130  cd hpx
+ 1131  ls
+ 1132  cd /usr/intel/builds/boost_1_53_0/stage/lib
+ 1133  ls
+ 1134  cp /usr/intel/lib/libboost* .
+ 1135  ls
+ 1136  cd ..
+ 1137  cd hpx
+ 1138  ./config_hpx.sh
+ 1139  cd /usr
+ 1140  cd src
+ 1141  cd hpx
+ 1142  ls
+ 1143  sudo git pull
+ 1144  cd Downloads/
+ 1145  ls
+ 1146  sudo ./l_psxe_online_p_2.1.2.017.sh 
+ 1147  icpc -V
+ 1148  icpc
+ 1149  cd
+ 1150  source ./use_intel.sh 
+ 1151  icpc -V
+ 1152  ls /opt/
+ 1153  ls /opt/intel
+ 1154  ls /opt/intel/bin
+ 1155  vi use_intel.sh 
+ 1156  source ./use_intel.sh 
+ 1157  icpc -V
+ 1158  cd 
+ 1159  cd /opt/intel/bin
+ 1160  vi icpc.cfg
+ 1161  cd ..
+ 1162  find . -name "icpc.cfg"
+ 1163  vi ./composer_xe_2013_sp1.2.144/intel64/icpc.cfg
+ 1164  sudo vi ./composer_xe_2013_sp1.2.144/intel64/icpc.cfg
+ 1165  cd composer_xe_2013_sp1.2.144/
+ 1166  ls
+ 1167  cd ..
+ 1168  find . -name "icpc.cfg"
+ 1169  sudo vi ./composer_xe_2013_sp1.2.144/bin/intel64/icpc.cfg
+ 1170  cd 
+ 1171  cd /usr
+ 1172  cd intel
+ 1173  ls
+ 1174  cd hpx
+ 1175  cd builds
+ 1176  cd hpx
+ 1177  ls
+ 1178  make 
+ 1179  vi config_hpx.sh 
+ 1180  make 
+ 1181  ./config_hpx.sh 
+ 1182  make -j4
+ 1183  make -j5
+ 1184  make -j4
+ 1185  gedit /usr/src/hpx/hpx/util/preprocessed/tuple_4.hpp
+ 1186  make -j4
+ 1187  gedit /usr/src/hpx/hpx/util/preprocessed/tuple_5.hpp
+ 1188  sudol gedit /usr/src/hpx/hpx/util/preprocessed/tuple_5.hpp
+ 1189  sudo gedit /usr/src/hpx/hpx/util/preprocessed/tuple_5.hpp
+ 1190  make -j4
+ 1191  gedit /usr/src/hpx/hpx/util/preprocessed/tuple_5.hpp
+ 1192  sudo gedit /usr/src/hpx/hpx/util/preprocessed/tuple_5.hpp
+ 1193  cd
+ 1194  cd usr
+ 1195  cd /usr
+ 1196  rm -r intel
+ 1197  cd intel
+ 1198  cd builds
+ 1199  cd hpx
+ 1200  ls
+ 1201  mv config_hpx.sh ~
+ 1202  cd
+ 1203  cd /usr
+ 1204  rm -r intel
+ 1205  sudo rm -r intel
+ 1206  eclipse &
+ 1207  cd 
+ 1208  cd /work/
+ 1209  cd
+ 1210  cd /workspace
+ 1211  cd workspace
+ 1212  cd fmmx
+ 1213  ls
+ 1214  cd release
+ 1215  history > out
+ 1216  vi out
+ 1217  mpirun -np 4 ./fmmx -Ihpx.parcel.bootstrap=mpi
+ 1218  /usr/bin/mpirun -np 4 ./fmmx -Ihpx.parcel.bootstrap=mpi
+ 1219  ./fmmx
+ 1220  ls -ralt
+ 1221  visit &
+ 1222  /usr/bin/mpirun -np 4 ./fmmx -Ihpx.parcel.bootstrap=mpi
+ 1223  time /usr/bin/mpirun -np 4 ./fmmx -Ihpx.parcel.bootstrap=mpi
+ 1224  time /usr/bin/mpirun -np 2 ./fmmx -Ihpx.parcel.bootstrap=mpi
+ 1225  time /usr/bin/mpirun -np 4 ./fmmx -Ihpx.parcel.bootstrap=mpi
+ 1226  time /usr/bin/mpirun -np 2 ./fmmx -Ihpx.parcel.bootstrap=mpi
+ 1227  time /usr/bin/mpirun -np 4 ./fmmx -Ihpx.parcel.bootstrap=mpi
+ 1228  time /usr/bin/mpirun -np 2 ./fmmx -Ihpx.parcel.bootstrap=mpi
+ 1229  time /usr/bin/mpirun -np 4 ./fmmx -Ihpx.parcel.bootstrap=mpi
+ 1230  time /usr/bin/mpirun -np 2 ./fmmx -Ihpx.parcel.bootstrap=mpi
+ 1231  time /usr/bin/mpirun -np 1 ./fmmx -Ihpx.parcel.bootstrap=mpi
+ 1232  cd /usr/gnu
+ 1233  ls
+ 1234  cd /usr
+ 1235  ls
+ 1236  cd intel
+ 1237  cd hpx
+ 1238  cd builds
+ 1239  cd hpx
+ 1240  ./config.sh
+ 1241  ./config_hpx.sh
+ 1242  cd ..
+ 1243  cd hpx
+ 1244  vi config_hpx.sh 
+ 1245  ./config_hpx.sh
+ 1246  source ~/use_intel.sh 
+ 1247  ./config_hpx.sh
+ 1248  cd ..
+ 1249  cd include
+ 1250  cd .
+ 1251  cd ..
+ 1252  rm -r include
+ 1253  rm -r bin
+ 1254  rm -r etc
+ 1255  rm -r share
+ 1256  top
+ 1257  cd ..
+ 1258  ls
+ 1259  sudo mkdir builds
+ 1260  chown -R builds
+ 1261  sudo chown dmarce1 builds
+ 1262  cd builds
+ 1263  mkdir hpx
+ 1264  cd hpx
+ 1265  cp ~/config_hpx.sh .
+ 1266  vi config_hpx.sh
+ 1267  ./config_hpx.sh 
+ 1268  cd ..
+ 1269  cd qthread-1.10/
+ 1270  ls
+ 1271  ./configure --prefix=/usr
+ 1272  make -j5
+ 1273  sudo make install
+ 1274  cd ..
+ 1275  cd hpx
+ 1276  ./config_hpx.sh 
+ 1277  gedit config_hpx.sh 
+ 1278  ./config_hpx.sh 
+ 1279  gedit config_hpx.sh  &
+ 1280  ./config_hpx.sh 
+ 1281  vi config_hpx.sh
+ 1282  source ~/use_intel.sh 
+ 1283  ./config_hpx.sh 
+ 1284  make -j4
+ 1285  vi config_hpx.sh
+ 1286  ./config_hpx.sh 
+ 1287  make -j4
+ 1288  gedit /usr/src/hpx/hpx/util/detail/unique_function.hpp &
+ 1289  make -j4
+ 1290  sudo gedit /usr/src/hpx/hpx/util/detail/unique_function.hpp &
+ 1291  sudo gedit /usr/src/hpx/hpx/util/detail/unique_function.hpp 
+ 1292  sudo gedit /usr/src/hpx/hpx/util/detail/unique_function.hpp &
+ 1293  make -j4
+ 1294  sudo gedit /usr/src/hpx/hpx/util/preprocessed/tuple_5.hpp
+ 1295  sudo gedit "/usr/src/hpx/hpx/util/bind.hpp
+ 1296  sudo gedit /usr/src/hpx/hpx/util/bind.hpp &
+ 1297  sudo gedit /usr/src/hpx/src/runtime/applier/applier.cpp &
+ 1298  make -j4
+ 1299  sudo gedit /usr/src/hpx/hpx/util/bind.hpp &
+ 1300  make -j4
+ 1301  vi config_hpx.sh
+ 1302  make -j4
+ 1303  ./config_hpx.sh 
+ 1304  make -j4
+ 1305  find /opt/intel/ -name "icpc.cfg"
+ 1306  sudo vi /opt/intel/composer_xe_2013_sp1.2.144/bin/intel64/icpc.c
+ 1307  sudo vi /opt/intel/composer_xe_2013_sp1.2.144/bin/intel64/icpc.cfg
+ 1308  make -j4
+ 1309  sudo vi /opt/intel/composer_xe_2013_sp1.2.144/bin/intel64/icpc.c
+ 1310  find /opt/intel/ -name "icpc.cfg"
+ 1311  sudo vi /opt/intel/composer_xe_2013_sp1.2.144/bin/intel64/icpc.cfg
+ 1312  ./config_hpx.sh 
+ 1313  ls
+ 1314  ./config_hpx.sh 
+ 1315  make -j4
+ 1316  ./config_hpx.sh 
+ 1317  cd ..
+ 1318  cd src
+ 1319  cd ..
+ 1320  cd src
+ 1321  sudo git pull
+ 1322  cd hpx
+ 1323  sudo git pull
+ 1324  cd ..
+ 1325  cd .
+ 1326  cd ..
+ 1327  cd builds/
+ 1328  ls
+ 1329  cd hpx
+ 1330  ls
+ 1331  make -j4
+ 1332  sudo make install
+ 1333  top
+ 1334  eclipse &
+ 1335  source use_intel.sh 
+ 1336  icpc
+ 1337  icpc -V
+ 1338  eclipse &
+ 1339  top
+ 1340  eclipse &
+ 1341  cd workspace/
+ 1342  cd fmmx
+ 1343  ls
+ 1344  cd release
+ 1345  ls
+ 1346  history > out
+ 1347  vi out
+ 1348  /usr/bin/mpirun -np 4 ./fmmx -Ihpx.parcel.bootstrap=mpi
+ 1349  /usr/bin/mpirun -np 2 ./fmmx -Ihpx.parcel.bootstrap=mpi
+ 1350  /usr/bin/mpirun -np 2 ./fmmx -Ihpx.parcel.bootstrap=mpi -t2
+ 1351  /usr/bin/mpirun -np 1 ./fmmx -Ihpx.parcel.bootstrap=mpi -t8
+ 1352  /usr/bin/mpirun -np 1 ./fmmx -Ihpx.parcel.bootstrap=mpi -t4
+ 1353  /usr/bin/mpirun -np 1 ./fmmx -Ihpx.parcel.bootstrap=mpi -t2
+ 1354  /usr/bin/mpirun -np 1 ./fmmx -Ihpx.parcel.bootstrap=mpi -t4
+ 1355  /usr/bin/mpirun -np 1 ./fmmx -Ihpx.parcel.bootstrap=mpi -t2
+ 1356  /usr/bin/mpirun -np 1 ./fmmx -Ihpx.parcel.bootstrap=mpi -t1
+ 1357  visit &
+ 1358  /usr/bin/mpirun -np 1 ./fmmx -Ihpx.parcel.bootstrap=mpi -t1
+ 1359  cd /usr
+ 1360  cd lib
+ 1361  cd pkgconfig/
+ 1362  sudo cp hpx_application.pc hpx_debug.pc
+ 1363  gedit hpx_debug.pc 
+ 1364  sudo gedit hpx_debug.pc 
+ 1365  vlc &
+ 1366  sudo apt-get install vlc-nox
+ 1367  vlc &
+ 1368  cvlc
+ 1369  vlc &
+ 1370  vlc 
+ 1371  vlc
+ 1372  xine
+ 1373  eclipse &
+ 1374  sudo apt-get install libdvdcss libdvdread4 libdvdnav4
+ 1375  sudo apt-get install libdvdread4 libdvdnav4
+ 1376  totem
+ 1377  vlc
+ 1378  sudo apt-get install libdvdread4 libdvdnav4
+ 1379  ssh -X mike.hpc.lsu.edu
+ 1380  eclipse &
+ 1381  s
+ 1382  ssh -X mike.hpc.lsu.edu
+ 1383  eclipse &
+ 1384  top
+ 1385  eclipse &
+ 1386  top
+ 1387  eclipse &
+ 1388  top
+ 1389  eclipse &
+ 1390  top
+ 1391  eclipse &
+ 1392  top
+ 1393  eclipse &
+ 1394  top
+ 1395  eclipse &
+ 1396  top
+ 1397  eclipse &
+ 1398  eclipse top
+ 1399  top
+ 1400  eclipse &
+ 1401  top
+ 1402  eclipse &
+ 1403  top
+ 1404  eclipse &
+ 1405  top
+ 1406  eclipse &
+ 1407  top
+ 1408  eclipse &
+ 1409  top
+ 1410  eclipse &
+ 1411  cd workspace/
+ 1412  cd xtree/
+ 1413  cd debug
+ 1414  ./xtre
+ 1415  ./xtree
+ 1416  history > out
+ 1417  viout
+ 1418  vi out2
+ 1419  /usr/bin/mpirun -np ./xtree -Ihpx.parcel.bootstrap=mpi
+ 1420  /usr/bin/mpirun -np 4 ./xtree -Ihpx.parcel.bootstrap=mpi
+ 1421  cd ..
+ 1422  cd release
+ 1423  /usr/bin/mpirun -np 4 ./xtree -Ihpx.parcel.bootstrap=mpi
+ 1424  time /usr/bin/mpirun -np 16 ./xtree -Ihpx.parcel.bootstrap=mpi
+ 1425  time /usr/bin/mpirun -np 8 ./xtree -Ihpx.parcel.bootstrap=mpi
+ 1426  time /usr/bin/mpirun -np 64 ./xtree -Ihpx.parcel.bootstrap=mpi
+ 1427  cd ..
+ 1428  cd src
+ 1429  cd ..
+ 1430  scp -r src mike.hpc.lsu.edu:xtree
+ 1431  cd release
+ 1432  time /usr/bin/mpirun -np 64 ./xtree -Ihpx.parcel.bootstrap=mpi
+ 1433  time /usr/bin/mpirun -np 8 ./xtree -Ihpx.parcel.bootstrap=mpi
+ 1434  make clean
+ 1435  ls
+ 1436  cd ..
+ 1437  ls
+ 1438  cd debug
+ 1439  make clean
+ 1440  ls
+ 1441  rm out
+ 1442  cd ..
+ 1443  touch README.md
+ 1444  git init
+ 1445  git add README.md
+ 1446  git commit -m "first commit"
+ 1447  git remote add origin https://github.com/dmarce1/xtree.git
+ 1448  git push -u origin master
+ 1449  git add *
+ 1450  git commit -m "first commit"
+ 1451  git push
+ 1452  cd src
+ 1453  wc *
+ 1454  eclipse &
+ 1455  cd workspace/
+ 1456  ls
+ 1457  cd xtree/
+ 1458  cd release
+ 1459  ./xtree
+ 1460  time /usr/bin/mpirun -np 8 ./xtree -Ihpx.parcel.bootstrap=mpi
+ 1461  cd ..
+ 1462  cd debug
+ 1463  time /usr/bin/mpirun -np 8 ./xtree -Ihpx.parcel.bootstrap=mpi
+ 1464  time /usr/bin/mpirun -np 1 ./xtree -Ihpx.parcel.bootstrap=mpi
+ 1465  time /usr/bin/mpirun -np 8 ./xtree -Ihpx.parcel.bootstrap=mpi
+ 1466  time /usr/bin/mpirun -np 4 ./xtree -Ihpx.parcel.bootstrap=mpi
+ 1467  time /usr/bin/mpirun -np 2 ./xtree -Ihpx.parcel.bootstrap=mpi
+ 1468  time /usr/bin/mpirun -np 1 ./xtree -Ihpx.parcel.bootstrap=mpi
+ 1469  time /usr/bin/mpirun -np 2 ./xtree -Ihpx.parcel.bootstrap=mpi
+ 1470  time /usr/bin/mpirun -np 8 ./xtree -Ihpx.parcel.bootstrap=mpi
+ 1471  cd ..
+ 1472  cd release
+ 1473  time /usr/bin/mpirun -np 8 ./xtree -Ihpx.parcel.bootstrap=mpi
+ 1474  time /usr/bin/mpirun -np 2 ./xtree -Ihpx.parcel.bootstrap=mpi
+ 1475  time /usr/bin/mpirun -np 8 ./xtree -Ihpx.parcel.bootstrap=mpi
+ 1476  time /usr/bin/mpirun -np 16 ./xtree -Ihpx.parcel.bootstrap=mpi
+ 1477  time /usr/bin/mpirun -np 32 ./xtree -Ihpx.parcel.bootstrap=mpi
+ 1478  time /usr/bin/mpirun -np 1 ./xtree -Ihpx.parcel.bootstrap=mpi
+ 1479  time /usr/bin/mpirun -np 6 ./xtree -Ihpx.parcel.bootstrap=mpi
+ 1480  make clean
+ 1481  ls
+ 1482  cd ..
+ 1483  cd debug
+ 1484  make clean
+ 1485  cd ..
+ 1486  git commit -m "Finished locality_server"
+ 1487  git add *
+ 1488  git commit -m "Finished locality_server"
+ 1489  git push
+ 1490  top
+ 1491  eclipse &
+ 1492  cd workspace/
+ 1493  cd xtree
+ 1494  cd src
+ 1495  g++ locality_server.cpp
+ 1496  g++ -E locality_server.cpp
+ 1497  g++ -E locality_server.cpp > locality_server.cpre
+ 1498  g++ -E locality_server.cpp
+ 1499  exit
+ 1500  cd workspace/
+ 1501  cd xtree
+ 1502  cd src
+ 1503  g++ -E locality_server.cpp > locality_server.out -std=c++11
+ 1504  g++ -E `pkg-config hpx_application` locality_server.cpp > locality_server.out 
+ 1505  g++ -E `pkg-config -cflags hpx_application` locality_server.cpp > locality_server.out 
+ 1506  g++ -E `pkg-config --cflags hpx_application` locality_server.cpp > locality_server.out 
+ 1507  ls
+ 1508  ls -l
+ 1509  rm *.cpre
+ 1510  ls -l
+ 1511  wc locality_server..out
+ 1512  wc locality_server.out
+ 1513  gedit locality_server.out &
+ 1514  g++ -E `pkg-config --cflags hpx_application` locality_server.cpp > locality_server.out 
+ 1515  eclipse &
+ 1516  top
+ 1517  cd
+ 1518  cd workspace/
+ 1519  cd xtree/
+ 1520  vi .gitignore 
+ 1521  git add *
+ 1522  cd src
+ 1523  git add *
+ 1524  ls
+ 1525  cd ..
+ 1526  git commit -m "`"
+ 1527  git commit -m "!"
+ 1528  git push
+ 1529  cd src
+ 1530  wc *
+ 1531  g++ -E `pkg-config --cflags hpx_application` *.cpp
+ 1532  g++ -E `pkg-config --cflags hpx_application` *.cpp > out
+ 1533  wc out
+ 1534  vi out
+ 1535  exit
+ 1536  eclipse &
+ 1537  ssh -X mike.hpc.lsu.edu
+ 1538  eclipse &
+ 1539  ssh -X mike.hpc.lsu.edu
+ 1540  exit
+ 1541  cd workspace/
+ 1542  cd xtree
+ 1543  ls
+ 1544  cd debug
+ 1545  make -k all
+ 1546  make clean
+ 1547  cd ..
+ 1548  cd release
+ 1549  make clean
+ 1550  cd ..
+ 1551  ls
+ 1552  rm .gitignore 
+ 1553  git add *
+ 1554  git commit -m "working on amr"
+ 1555  git push
+ 1556  ls
+ 1557  cd src
+ 1558  wc *
+ 1559  cd
+ 1560  cd /usr
+ 1561  cd hpx
+ 1562  cd src
+ 1563  cd hpx
+ 1564  git pull
+ 1565  sudo git pull
+ 1566  cd ..
+ 1567  cd builds/
+ 1568  ls
+ 1569  cd hpx/
+ 1570  ls
+ 1571  sudo make install
+ 1572  sudo make -j5 install
+ 1573  netlix
+ 1574  netflix
+ 1575  sudo apt-add-repository ppa:pipelight/stable
+ 1576  sudo apt-get update
+ 1577  sudo apt-get install pipelight-multi
+ 1578  ssh -X mike.hpc.lsu.edu
+ 1579  eclipse &
+ 1580  cd /usr
+ 1581  cd src
+ 1582  cd hpx
+ 1583  sudo git pull
+ 1584  cd
+ 1585  mkdir test
+ 1586  cd test
+ 1587  wget https://tug.org/svn/texlive/trunk/Build/source/texk/kpathsea/
+ 1588  wget https://tug.org/svn/texlive/trunk/Build/source/texk/kpathsea/*.*
+ 1589  scp tug.org/svn/texlive/trunk/Build/source/texk/kpathsea .
+ 1590  wget -R https://tug.org/svn/texlive/trunk/Build/source/texk/kpathsea
+ 1591  wget -r https://tug.org/svn/texlive/trunk/Build/source/texk/kpathsea
+ 1592  wget -r --no-parent https://tug.org/svn/texlive/trunk/Build/source/texk/kpathsea
+ 1593  ls
+ 1594  wget -r --no-parent http://tug.org/svn/texlive/trunk/Build/source/texk/kpathsea
+ 1595  wget -r --no-parent http://tug.org/svn/texlive/trunk/Build/source/texk/kpathsea/
+ 1596  rsync -a --delete --exclude=.svn tug.org::tldevsrc/Build/source
+ 1597  rsync -a --delete --exclude=.svn tug.org::tldevsrc/Build/source .
+ 1598  rsync -a --delete --progress -vz --exclude=.svn tug.org::tldevsrc/Build/source .
+ 1599  scp  -r tug.org::tldevsrc/Build/source .
+ 1600  scp  -r tug.org::tldevsrc/Build/source . -l guest
+ 1601  scp  -r guest@tug.org::tldevsrc/Build/source . 
+ 1602  exit
+ 1603  eclipse &
+ 1604  exit
+ 1605  sudo modprobe -r psmouse
+ 1606  sudo modprobe psmouse
+ 1607  exigt
+ 1608  exit
+ 1609  eclipse &
+ 1610  sudo apt-get update && sudo apt-get upgrade
+ 1611  sudo lshw -C network
+ 1612  sudo cat /var/log/messages | grep switch
+ 1613  cat /etc/network/interfaces
+ 1614  eclipse &
+ 1615  cd workspace/
+ 1616  cd xtree
+ 1617  ./xtree
+ 1618  cd debug
+ 1619  ./xtree
+ 1620  ls
+ 1621  ls -ralt
+ 1622  cd
+ 1623  cd /work/
+ 1624  cd
+ 1625  cd /usr/src
+ 1626  ls
+ 1627  cd hpx/
+ 1628  sudo git pull
+ 1629  sudo make install
+ 1630  cd ..
+ 1631  cd builds/
+ 1632  cd hpx
+ 1633  sudo make install
+ 1634  sudo make install -j5
+ 1635  vi config.sh
+ 1636  ls
+ 1637  vi config_hpx.sh
+ 1638  ./config_hpx.sh
+ 1639  sudo ./config_hpx.sh
+ 1640  sudo make clean && sudo make -j5 && sudo make install
+ 1641  cd /usr/lib/pkgconfig/
+ 1642  ls
+ 1643  ls -ralt
+ 1644  eclipse &
+ 1645  cd
+ 1646  cd /usr
+ 1647  cd builds/
+ 1648  vi hpx_config.sh
+ 1649  cd hpx
+ 1650  vi hpx_config.sh
+ 1651  vi config_hpx.sh
+ 1652  ./config_hpx.sh
+ 1653  sudo ./config_hpx.sh
+ 1654  sudo make clean && sudo make -j5 && sudo make install
+ 1655  sudo make -j4 && sudo make install
+ 1656  cd /work/
+ 1657  cd
+ 1658  cd /work/
+ 1659  cd
+ 1660  cd workspace/
+ 1661  cd xtree
+ 1662  cd debug
+ 1663  ./xtree
+ 1664  cd
+ 1665  cd /usr
+ 1666  cd src
+ 1667  cd hpx
+ 1668  eclipse &
+ 1669  sudo git pull hpx
+ 1670  sudo git pull
+ 1671  cd
+ 1672  cd include
+ 1673  cd /usr
+ 1674  cd include
+ 1675  ls
+ 1676  rm -r hpx
+ 1677  sudo rm -r hpx
+ 1678  cd ..
+ 1679  cd lib
+ 1680  sudo rm -r hpx
+ 1681  cd ..
+ 1682  cd builds
+ 1683  cd hpx
+ 1684  ls
+ 1685  sudo make install
+ 1686  vi config_hpx.sh
+ 1687  ./config_hpx.sh
+ 1688  sudo ./config_hpx.sh
+ 1689  grep "-g" -r *
+ 1690  grep -r "-g" *
+ 1691  grep -r "g3" *
+ 1692  grep -r "O3" *
+ 1693  vi config_hpx.sh
+ 1694  ./config_hpx.sh
+ 1695  sudo ./config_hpx.sh
+ 1696  vi config_hpx.sh
+ 1697  sudo ./config_hpx.sh
+ 1698  sudo make clean && sudo make -j5 && sudo make install
+ 1699  sudo make clean && sudo make -j4
+ 1700  udo make clean && sudo make -j2
+ 1701  sudo make -j2
+ 1702  top
+ 1703  ls
+ 1704  cd 
+ 1705  cd workspace/
+ 1706  cd xtree
+ 1707  cd debug
+ 1708  ls
+ 1709  cd ..
+ 1710  ls
+ 1711  visit &
+ 1712  ls *.silo -l
+ 1713  cd debug
+ 1714  ./xtree
+ 1715  ls *.silo
+ 1716  rm *.silo
+ 1717  ls *.silo
+ 1718  ./xtree
+ 1719  ls
+ 1720  ls -ralt
+ 1721  visit &
+ 1722  ./xtree
+ 1723  visit &
+ 1724  rm *.silo
+ 1725  ./xtree
+ 1726  rm *.silo
+ 1727  visit &
+ 1728  ls *.silo
+ 1729  ./xtree
+ 1730  ls
+ 1731  visit &
+ 1732  ./xtree
+ 1733  ls -ralt
+ 1734  ./xtree
+ 1735  ./xtree > out
+ 1736  vi out
+ 1737  ./xtree
+ 1738  ./xtree > out
+ 1739  vi out
+ 1740  cd /usr
+ 1741  cd src
+ 1742  cd hpx
+ 1743  sudo git pull
+ 1744  cd ..
+ 1745  cd builds
+ 1746  cd hpx
+ 1747  ls
+ 1748  sudo make -k4
+ 1749  sudo make -j4
+ 1750  vi hpx_config.sh
+ 1751  vi config_hpx.sh
+ 1752  make clean
+ 1753  ./config_hpx.sh
+ 1754  sudo ./config_hpx.sh
+ 1755  sudo make -j4
+ 1756  sudo make install
+ 1757  ssh -X mike.hpc.lsu.edu
+ 1758  exit
+ 1759  eclipse &
+ 1760  cd /usr
+ 1761  cd include
+ 1762  cd hpx
+ 1763  grep -r "bind" *
+ 1764  grep -r "bind.hpp" *
+ 1765  eclipse &
+ 1766  ssh -X mike.hpc.lsu.edu
+ 1767  exit
+ 1768  ssh -X mike.hpc.lsu.edu
+ 1769  eclipse &
+ 1770  scp mike.hpc.lsu.edu:/work/dmarce1/jan/output/X.1.silo.gz .
+ 1771  scp mike.hpc.lsu.edu:/work/dmarce1/jan/output/X.0.silo.gz .
+ 1772  gunzip *.gz
+ 1773  ls
+ 1774  visit &
+ 1775  ssh -X mic.hpc.lsu.edu 
+ 1776  ssh -X mike.hpc.lsu.edu
+ 1777  exit
+ 1778  eclipse &
+ 1779  ssh -X mike.hpc.lsu.edu
+ 1780  exit
+ 1781  cd workspace/
+ 1782  cd xtree
+ 1783  ls
+ 1784  cd debug
+ 1785  ls
+ 1786  rm *.silo
+ 1787  make clean
+ 1788  ls
+ 1789  cd ..
+ 1790  cd release
+ 1791  ls
+ 1792  make clean
+ 1793  cd ..
+ 1794  rm .gitignore 
+ 1795  git add *
+ 1796  git commit -m "Considerable backtracking, reiterating"
+ 1797  git push
+ 1798  cd Debug
+ 1799  maek
+ 1800  make
+ 1801  cd Debug
+ 1802  make -k all
+ 1803  cd Debug
+ 1804  ls
+ 1805  cd debug
+ 1806  Make
+ 1807  make -k all
+ 1808  cd
+ 1809  cd usr
+ 1810  cd /usr
+ 1811  cd src
+ 1812  cd hpx
+ 1813  cd examples
+ 1814  ls
+ 1815  cd quickstart/
+ 1816  ls
+ 1817  gedit component_inheritance_simple.cpp 
+ 1818  gedit component_inheritance_simple.cpp  &
+ 1819  grep "wrapped_type" *
+ 1820  cd ..
+ 1821  grep -r "wrapped_type" *
+ 1822  cd ..
+ 1823  cd hpx
+ 1824  ls
+ 1825  grep -r "wrapped_type" *
+ 1826  gedit /usr/include/hpx/runtime/components/stubs/runtime_support.hpp &*
+ 1827  geit /usr/include/hpx/runtime/components/server/runtime_support.hpp:437 &
+ 1828  gedit /usr/include/hpx/runtime/components/server/runtime_support.hpp:437 &
+ 1829  gedit /usr/include/hpx/runtime/components/server/runtime_support.hpp
+ 1830  cd
+ 1831  cd /work/dmarce1
+ 1832  cd jan
+ 1833  mkdir jan
+ 1834  cd jan 
+ 1835  scp mike.hpc.lsu.edu:/work/dmarce1/jan/output/X.0.silo .
+ 1836  visit &
+ 1837  scp mike.hpc.lsu.edu:/work/dmarce1/runs/q0.70/output/X.0.silo X.1.silo
+ 1838  visit &
+ 1839  ssh -X mike.hpc.lsu.edu
+ 1840  scp mike.hpc.lsu.edu:/work/dmarce1/runs/q0.20.FMM/mdot.png .
+ 1841  ssh -X mike.hpc.lsu.edu
+ 1842  cd workspace/
+ 1843  cd xtree
+ 1844  ls
+ 1845  cd debug
+ 1846  make cealn
+ 1847  make clean
+ 1848  cd .
+ 1849  .cd release
+ 1850  make clean
+ 1851  cd ..
+ 1852  cd release
+ 1853  make clean
+ 1854  ls
+ 1855  cd ..
+ 1856  ls
+ 1857  git add *
+ 1858  rm .gitignore 
+ 1859  git add *
+ 1860  git commit -m "working on ops"
+ 1861  git push
+ 1862  cd src
+ 1863  wc *
+ 1864  exit
+ 1865  ssh -X mike.hpc.lsu.edu
+ 1866  ssh -X queenbee.loni.org
+ 1867  eclipse &
+ 1868  ssh -X mike.hpc.lsu.edu
+ 1869  exit
+ 1870  eclipse &
+ 1871  ssh queenbee.loni.org
+ 1872  ssh -X mike.hpc.lsu.edu
+ 1873  ssh -X eric.loni.org
+ 1874  cd workspace/
+ 1875  cd xtree
+ 1876  ls
+ 1877  cd debug
+ 1878  make clean
+ 1879  cd ..
+ 1880  cd release
+ 1881  make clean
+ 1882  cd ..
+ 1883  ls
+ 1884  rm -r .gitignore 
+ 1885  git add *
+ 1886  git commit -m "FMM+Xtree 1st draft done"
+ 1887  git push
+ 1888  cd ..
+ 1889  cd xtree
+ 1890  cd src
+ 1891  wc *
+ 1892  cd
+ 1893  cd backup/
+ 1894  ls
+ 1895  cd home/
+ 1896  cd octo
+ 1897  cd hpx
+ 1898  cd HPX
+ 1899  ls
+ 1900  cd octopus/
+ 1901  ls
+ 1902  cd octopus/
+ 1903  ls
+ 1904  wc *
+ 1905  wc -r *
+ 1906  wc -R *
+ 1907  wc ./* ./*/* ./*/*/*
+ 1908  wc ./* ./*/* ./*/*/* ./*/*/*/*
+ 1909  wc ./* ./*/* 
+ 1910  cd ..
+ 1911  ls
+ 1912  cd src
+ 1913  ls
+ 1914  wc ./* ./*/* 
+ 1915  cd ..
+ 1916  ls
+ 1917  wc ./*/*.cpp ./*/*.hpp ./*/*/*.cpp ./*/*/*.hpp
+ 1918  cd
+ 1919  cd /usr/
+ 1920  cd src
+ 1921  cd hpx
+ 1922  ls
+ 1923  sudo git pull
+ 1924  sudo make
+ 1925  cd ..
+ 1926  cd builds/
+ 1927  cd hpx
+ 1928  sudo make -j4
+ 1929  sudo make -j3
+ 1930  sudo make install
+ 1931  ssh -X mike.hpc.lsu.edu
+ 1932  ssh -X phys.lsu.edu -l dmarcel
+ 1933  ssh -X stampede.tacc.xsede.org -l dmarcel
+ 1934  ssh -X mike.hpc.lsu.edu
+ 1935  cd
+ 1936  cd workspace/
+ 1937  ls
+ 1938  cd scorpio
+ 1939  cd src
+ 1940  scp -r mike.hpc.lsu.edu:/work/dmarce1/jan/src/* .
+ 1941  ls
+ 1942  rm -r *
+ 1943  scp -r mike.hpc.lsu.edu:/work/dmarce1/jan/src/* .
+ 1944  ssh -X mike.hpc.lsu.edu
+ 1945  exit
+ 1946  eclipse &
+ 1947  exit
+ 1948  cd workspace/
+ 1949  cd xtre`
+ 1950  cd xtree
+ 1951  cd Debug
+ 1952  cd debug
+ 1953  make -k all
+ 1954  cd
+ 1955  gedit giss.txt &
+ 1956  gnuplot
+ 1957  exit
+ 1958  ls *.txt
+ 1959  gnuplot
+ 1960  man gnuplot
+ 1961  !
+ 1962  man gnuplot
+ 1963  gnuplot
+ 1964  sudo apt-get install gnuplot-x11
+ 1965  gnuplot
+ 1966  ls
+ 1967  gimp giss.png &
+ 1968  sudo apt-get install gimp
+ 1969  eclipse &
+ 1970  wget 
+ 1971  mkdir movies
+ 1972  cd movies/
+ 1973  wget https://r13---sn-aiglln7e.googlevideo.com/videoplayback?ipbits=0&nh=IgpwcjAzLmxocjE0KgkxMjcuMC4wLjE&sver=3&id=o-AGXWreEPfJEox7699bQqQGY9-CzZeQiP96i63OQKL8xK&expire=1403398800&ratebypass=yes&itag=18&ms=au&requiressl=yes&mv=m&ip=2a02%3A2498%3Ae003%3A3d%3A225%3A90ff%3Afea6%3A805a&mws=yes&initcwndbps=911000&gcr=gb&sparams=gcr%2Cid%2Cinitcwndbps%2Cip%2Cipbits%2Citag%2Cratebypass%2Crequiressl%2Csource%2Cupn%2Cexpire&source=youtube&upn=u1TFFiXKS9s&mt=1403374255&key=yt6&fexp=902408%2C908595%2C914070%2C927606%2C930008%2C934026%2C934030%2C941422&signature=DF1E6890BFC85A99E4FF5500A4E939BA58A32A12.9C1B22BC0A67926FF3FFA20F317D18428F9C92AE&title=KOOL+%26+THE+GANG-JUNGLE+BOOGIE%2CLIVE+IN+1974.mp4
+ 1974  eclipse &
+ 1975  ls
+ 1976  gnuplot
+ 1977  ssh -X queenbee.loni.org
+ 1978  ssh -X mike.hpc.lsu.edu
+ 1979  ssh -X eric.loni.org
+ 1980  ssh -X queenbee.loni.org
+ 1981  ssh -X louie.loni.org
+ 1982  ssh -X queenbee.loni.org
+ 1983  ssh -X mike.hpc.lsu.edu
+ 1984  ssh -X eric.loni.og
+ 1985  ssh -X eric.loni.org
+ 1986  ssh -X mike.hpc.lsu.edu
+ 1987  ssh -X eric.loni.org 
+ 1988  ssh -X mike.hpc.lsu.edu
+ 1989  exit
+ 1990  cd /workspace
+ 1991  cd workspace/
+ 1992  cd scorpio/
+ 1993  cd src/
+ 1994  scp -r * mike.hpc.lsu.edu:/work/dmarce1/jan/src/*
+ 1995  scp -r * mike.hpc.lsu.edu:/work/dmarce1/jan/src/
+ 1996  ssh -X mike.hpc.lsu.edu
+ 1997  cd id_r
+ 1998  cd .ssh
+ 1999  ls
+ 2000  scp id_rsa.pub mike.hpc.lsu.edu:
+ 2001  ssh -X mike.hpc.lsu.edu
+ 2002  ls
+ 2003  ssh-keygen -t rsa
+ 2004  scp id_rsa.pub mike.hpc.lsu.edu:
+ 2005  ssh -X mike.hpc.lsu.edu
+ 2006  ssh-add
+ 2007  ssh -X mike.hpc.lsu.edu
+ 2008  cd
+ 2009  cd workspace/
+ 2010  cd scorpio/
+ 2011  ls
+ 2012  cd Releas
+ 2013  cd Release
+ 2014  ls
+ 2015  /usr/bin/mpirun -np 4 ./scorpio 
+ 2016  ls
+ 2017  history
+ 2018  history > out

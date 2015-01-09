@@ -1,6 +1,6 @@
 #include "lane_emden.h"
 #include "binary_star.h"
-#include "indexer3d.h"
+#include "../indexer3d.h"
 
 #include "dwd.h"
 
@@ -143,13 +143,18 @@ void BinaryStar::set_refine_flags() {
 #endif
                         if (!get_refine_flag(c)) {
                             //              set_refine_flag(c, true);
-                            Real ra = (X(i, j, k) - bparam.x1).mag();
+                            _3Vec tmp;
+                            tmp = 0.0;
+                            tmp[0] = bparam.x1;
+                            Real ra = (X(i, j, k) - tmp).mag();
+                            tmp = 0.0;
+                            tmp[0] = bparam.x2;
                             Real rd = (X(i, j, k) - bparam.x2).mag();
                             if ((*this)(i, j, k).rho() > refine_floor * refine_adjustment) {
                                 set_refine_flag(c, true);
-                            } else if (get_time() == 0.0 && (ra < get_dx() || rd < get_dx())) {
+                            } else if (get_time() == 0.0 && (ra < 2.0 * get_dx() || rd < 2.0 * get_dx())) {
                                 set_refine_flag(c, true);
-                            } else/* if (get_time() != 0.0)*/{
+                            } else if (get_time() != 0.0) {
                                 this_mass = pow(get_dx(), 3) * (*this)(i, j, k).rho();
                                 if (this_mass > mass_min) {
                                     set_refine_flag(c, true);
@@ -168,9 +173,9 @@ void BinaryStar::initialize() {
         bparam_init = true;
         bparam.fill_factor = 1.00;
         binary_parameters_compute(&bparam);
-        State::rho_floor = 1.0e-12 * bparam.rho1;
-        refine_floor = 1.0e-4 * bparam.rho2;
-        dynamic_cast<Hydro*>(get_root())->Hydro::mult_dx(bparam.a * 2.0);
+        State::rho_floor = min(1.0e-15 * bparam.rho1, 1.0e-13 * bparam.rho2);
+        refine_floor = min(1.0e-6 * bparam.rho1, 1.0e-4 * bparam.rho2);
+        dynamic_cast<Hydro*>(get_root())->Hydro::mult_dx(bparam.a * 128.0 * 0.96 / 16.0);
         State::set_omega(bparam.omega);
     }
     for (int k = BW - 1; k < GNX - BW + 1; k++) {
@@ -183,21 +188,26 @@ void BinaryStar::initialize() {
                 rho = max(rho, State::rho_floor);
                 Real tau = pow(State::ei_floor, 1.0 / State::gamma);
                 U.set_rho(rho);
-                U.set_et(U.ed());
-                U.set_tau(tau);
-                U.set_sx(0.0);
-                U.set_sy(bparam.omega * R2 * U.rho());
-                U.set_sz(0.0);
                 if (id == 1) {
-                    U.set_frac(0, U.rho());
+                    U.set_frac(0, rho);
                     U.set_frac(1, 0.0);
                 } else if (id == -1) {
-                    U.set_frac(1, U.rho());
+                    U.set_frac(1, rho);
                     U.set_frac(0, 0.0);
                 } else {
                     U.set_frac(1, 0.0);
                     U.set_frac(0, 0.0);
                 }
+                U.set_et(U.ed());
+                U.set_tau(tau);
+                U.set_sx(0.0);
+                if (rho > State::rho_floor) {
+                    U.set_sy(bparam.omega * R2 * U.rho());
+                } else {
+                    U.set_sy(0.0);
+                }
+                U.set_sz(0.0);
+
                 (*this)(i, j, k) = U;
             }
         }

@@ -82,7 +82,7 @@ bool OctNode::check_for_refine() {
 	}
 	rc = root->use_refine_flags();
 	if (rc) {
-		root->find_local_nodes();
+        root->find_local_nodes();
 	}
 	return rc;
 }

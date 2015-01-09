@@ -34,6 +34,7 @@
  along with this program; if not, write to the Free Software
  Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
+#ifdef UGIUFGIUF
 #ifndef NDEBUG
 
 #define fatal(a, b) exit(1)
@@ -52,7 +53,7 @@
 #include <stdlib.h>
 #include <execinfo.h>
 #include <bfd.h>
-#include <libiberty.h>
+//#include <libiberty.h>
 #include <dlfcn.h>
 #include <link.h>
 
@@ -303,4 +304,5 @@ void backtrace_symbols_fd(void * const *buffer, int size, int fd) {
 	free(strings);
 }
 
+#endif
 #endif

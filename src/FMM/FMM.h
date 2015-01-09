@@ -10,6 +10,8 @@
 
 #include "../defs.h"
 
+#ifdef USE_FMM
+
 #define USE_FMM_ANGULAR
 
 #include "../hydro/hydro.h"
@@ -208,5 +210,7 @@ public:
 	}
 
 };
+
+#endif
 
 #endif

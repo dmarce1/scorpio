@@ -1,6 +1,6 @@
 #ifndef OCOctNode_NODE_H_
 #define OCOctNode_NODE_H_
-
+#include <mpi.h>
 #include "../assert.h"
 #include "../bits.h"
 #include "../comm.h"
@@ -97,6 +97,7 @@ public:
     void output(const char* prefix, int counter, int, int, double dtheta = 0.0) const;
     int proc() const;
     bool is_amr_bound(OctFace f) const;
+    virtual void expand_grid();
 
 };
 

@@ -22,7 +22,7 @@ void handler(int sig) {
 int main(int argc, char* argv[]) {
 	int rc;
 	MPI_Init(NULL, NULL);
-	signal(SIGSEGV, handler);
+	//signal(SIGSEGV, handler);
 	rc = Program().run(argc, argv);
 	MPI_Finalize();
 	return rc;

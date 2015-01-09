@@ -16,8 +16,8 @@ CPP_DEPS += \
 # Each subdirectory must supply rules for building sources it contributes
 src/blast_wave/%.o: ../src/blast_wave/%.cpp
 	@echo 'Building file: $<'
-	@echo 'Invoking: Intel Intel(R) 64 C++ Compiler '
-	mpic++ -O3 -ipo -inline-level=2 -I"/home/dmarce1/Scorpio/src" -DNDEBUG -openmp-stubs -diag-disable 161 -fp-speculation=fast -fp-model fast=2 -xHost -unroll-aggressive -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -c -o "$@" "$<"
+	@echo 'Invoking: Intel C++ Compiler'
+	mpicc -O2 -DNDEBUG -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -c -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 

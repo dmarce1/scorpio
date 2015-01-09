@@ -94,33 +94,39 @@ public:
         sinx = x[1] / R;
         switch (l) {
         case 0:
-            return U[State::d_index];
+            return U.frac(0);
         case 1:
             return U.frac(1);
         case 2:
-            return U.frac(0);
+            return U.frac(2);
         case 3:
-            return U.sx();
+            return U.frac(3);
         case 4:
-            return U.sy();
+            return U.frac(4);
         case 5:
-            return U.lz();
+            return U.sx();
         case 6:
-            return U.sz();
+            return U.sy();
         case 7:
-            return U.et();
+            return U.lz();
         case 8:
-            return U.et() + U.rot_pot(x) + State::omega * U.lz();
+            return U.sz();
         case 9:
-            return U[State::tau_index];
+            return U.et();
         case 10:
-            return get_phi(i, j, k);
+            return U.et() + U.rot_pot(x) + State::omega * U.lz();
         case 11:
-            return cosx * gx(i, j, k) + sinx * gy(i, j, k);
+            return U[State::tau_index];
         case 12:
-            return g_lz(i, j, k);
+            return get_phi(i, j, k);
         case 13:
+            return cosx * gx(i, j, k) + sinx * gy(i, j, k);
+        case 14:
+            return g_lz(i, j, k);
+        case 15:
             return gz(i, j, k);
+        case 16:
+            return U.rho();
         }
         assert(false);
         return 0.0;
@@ -128,38 +134,45 @@ public:
     virtual const char* output_field_names(int i) const {
         switch (i) {
         case 0:
-            return "rho";
-        case 1:
-            return "He";
+             return "He";
+         case 1:
+            return "C";
         case 2:
-            return "CO";
+            return "O";
         case 3:
-            return "sx";
+            return "Ne";
         case 4:
-            return "sy";
+            return "Mg";
         case 5:
-            return "lz";
+            return "sx";
         case 6:
-            return "sz";
+            return "sy";
         case 7:
-            return "etot";
+            return "lz";
         case 8:
-            return "etot_inertial";
+            return "sz";
         case 9:
-            return "tau";
+            return "etot";
         case 10:
-            return "phi";
+            return "etot_inertial";
         case 11:
-            return "G_sR";
+            return "tau";
         case 12:
-            return "G_lz";
+            return "phi";
         case 13:
+            return "G_sR";
+        case 14:
+            return "G_lz";
+        case 15:
             return "G_sz";
-        } assert(false);
+        case 16:
+            return "rho";
+        }
+        assert(false);
         return "";
     }
     virtual int nvar_output() const {
-        return 14;
+        return 17;
     }
 };
 #endif

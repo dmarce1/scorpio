@@ -3,7 +3,7 @@
 
 #include "../vector.h"
 #include "../real.h"
-#include <algorithm>
+//#include <algorithm>
 
 static const Real delta[3][3] = { { 1.0, 0.0, 0.0 }, { 0.0, 1.0, 0.0 }, { 0.0, 0.0, 1.0 } };
 static const size_t map2[3][3] = { { 0, 1, 2 }, { 1, 3, 4 }, { 2, 4, 5 } };

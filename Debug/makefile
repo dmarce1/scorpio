@@ -46,19 +46,19 @@ endif
 # Add inputs and outputs from these tool invocations to the build variables 
 
 # All Target
-all: Scorpio
+all: scorpio
 
 # Tool invocations
-Scorpio: $(OBJS) $(USER_OBJS)
+scorpio: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
-	@echo 'Invoking: Intel Intel(R) 64 C++ Linker'
-	mpic++ -openmp-stubs -openmp-stubs -o "Scorpio" $(OBJS) $(USER_OBJS) $(LIBS)
+	@echo 'Invoking: Intel C++ Linker'
+	mpicc  -o "scorpio" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) $(OBJS)$(C++_DEPS)$(C_DEPS)$(CC_DEPS)$(CPP_DEPS)$(EXECUTABLES)$(CXX_DEPS)$(C_UPPER_DEPS) Scorpio
+	-$(RM) $(OBJS)$(C++_DEPS)$(C_DEPS)$(CC_DEPS)$(CPP_DEPS)$(EXECUTABLES)$(CXX_DEPS)$(C_UPPER_DEPS) scorpio
 	-@echo ' '
 
 .PHONY: all clean dependents

@@ -3,23 +3,13 @@
 ################################################################################
 
 O_SRCS := 
-C_UPPER_SRCS := 
 CPP_SRCS := 
-OBJ_SRCS := 
-FTN_SRCS := 
-F77_SRCS := 
-CXX_SRCS := 
-F90_SRCS := 
-C++_SRCS := 
-F03_SRCS := 
-FPP_SRCS := 
+C_UPPER_SRCS := 
 C_SRCS := 
-FIX_SRCS := 
-F_SRCS := 
-FOR_SRCS := 
-F08_SRCS := 
+OBJ_SRCS := 
+CXX_SRCS := 
+C++_SRCS := 
 CC_SRCS := 
-F95_SRCS := 
 OBJS := 
 C++_DEPS := 
 C_DEPS := 

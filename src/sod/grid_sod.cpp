@@ -11,7 +11,7 @@ static Real c = 15.0;
 static Real etot = 0.0;
 static bool diag_mode = false;
 static bool initialized1 = false;
-bool GridSod::oblique = true;
+bool GridSod::oblique = false;
 
 Vector<Real, 5>* GridSod::line_avg_tmp;
 Vector<Real, 5>* GridSod::line_avg;
@@ -61,23 +61,26 @@ void GridSod::flux_physical_bounds(int dir) {
 }
 
 void GridSod::physical_boundary(int dir) {
-    //  printf( "Roll your own\n");
-    Vector<int, 3> lb, ub, k;
-    for (int l = 0; l < 2; l++) {
-        if (is_phys_bound(2 * dir + l)) {
-            lb = BW;
-            ub = GNX - BW - 1;
-            lb[dir] = 0 + (GNX - BW) * l;
-            ub[dir] = BW - 1 + (GNX - BW) * l;
-            for (Indexer3d i(lb, ub); !i.end(); i++) {
-                k = i;
-                k[dir] = BW + l * (GNX - 2 * BW - 1);
-                U(i[0], i[1], i[2]) = U(k[0], k[1], k[2]);
-                U(i[0], i[1], i[2]).set_lz_from_cartesian(X(i[0], i[1], i[2]));
+
+    // printf( "Roll your own\n");
+    for (dir = 0; dir < 3; dir++) {
+        Vector<int, 3> lb, ub, k;
+        for (int l = 0; l < 2; l++) {
+            if (is_phys_bound(2 * dir + l)) {
+                lb = BW;
+                ub = GNX - BW - 1;
+                lb[dir] = 0 + (GNX - BW) * l;
+                ub[dir] = BW - 1 + (GNX - BW) * l;
+                for (Indexer3d i(lb, ub); !i.end(); i++) {
+                    k = i;
+                    k[dir] = BW + l * (GNX - 2 * BW - 1);
+                    U(i[0], i[1], i[2]) = U(k[0], k[1], k[2]);
+                    U(i[0], i[1], i[2]).set_lz_from_cartesian(X(i[0], i[1], i[2]));
+                }
             }
         }
     }
-    inc_instruction_pointer(dir);
+    inc_instruction_pointer();
 }
 
 GridSod::GridSod() {
@@ -155,11 +158,10 @@ const char* GridSod::output_field_names(int i) const {
 
 void GridSod::run(int argc, char* argv[]) {
     //shadow_on();
-    if (argc != 2 || atoi(argv[1]) < 1) {
-        printf("Command format is ./Scorpio <maxlev>\n");
-        MPI_Abort(MPI_COMM_WORLD, -1);
-    }
     Real dxmin = dynamic_cast<GridSod*>(get_root())->get_dx() / Real(1 << get_max_level_allowed());
+    _3Vec O = 0.0;
+    O[0] = dxmin/4.0;
+   // set_origin(O);
     initialized1 = true;
     PhysicalConstants::A = 0.0;
     line_N = int(2.0 * GRID_DIM / dxmin + 1.5);
@@ -171,7 +173,7 @@ void GridSod::run(int argc, char* argv[]) {
         line_bin_cnt[i] = 0;
         line_avg[i] = Vector<Real, 5>(0.0);
     }
-    HydroGrid::run(argc, argv);
+    Hydro::run(argc, argv);
     GridSod* g;
     const int M = (GNX - 2 * BW) * (GNX - 2 * BW) * (GNX - 2 * BW);
     Real ad[M];
@@ -314,7 +316,7 @@ void GridSod::initialize() {
     for (int k = 0; k < GNX; k++) {
         for (int j = 0; j < GNX; j++) {
             for (int i = 0; i < GNX; i++) {
-                if (xsod(i, j, k) < 0.0) {
+                if (xsod(i, j, k) < -0.00) {
                     U.set_rho(sod_init.rhol);
                     U.set_et(sod_init.pl / (sod_init.gamma - 1.0));
                 } else {

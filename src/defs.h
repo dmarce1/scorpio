@@ -8,8 +8,9 @@
 #include "./state/state.h"
 
 #ifdef BINARY_STAR
+#define USE_FMM
 #define HYDRO_GRAV_GRID
-#define NFRAC 2
+#define NFRAC 5
 #include "./binary_star/defs.h"
 class BinaryStar;
 typedef BinaryStar ProblemGrid;
